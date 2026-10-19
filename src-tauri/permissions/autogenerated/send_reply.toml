@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-send-reply"
+description = "Enables the send_reply command without any pre-configured scope."
+commands.allow = ["send_reply"]
+
+[[permission]]
+identifier = "deny-send-reply"
+description = "Denies the send_reply command without any pre-configured scope."
+commands.deny = ["send_reply"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mark-announcement-read"
+description = "Enables the mark_announcement_read command without any pre-configured scope."
+commands.allow = ["mark_announcement_read"]
+
+[[permission]]
+identifier = "deny-mark-announcement-read"
+description = "Denies the mark_announcement_read command without any pre-configured scope."
+commands.deny = ["mark_announcement_read"]

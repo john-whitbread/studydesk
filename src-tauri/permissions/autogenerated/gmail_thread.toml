@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-gmail-thread"
+description = "Enables the gmail_thread command without any pre-configured scope."
+commands.allow = ["gmail_thread"]
+
+[[permission]]
+identifier = "deny-gmail-thread"
+description = "Denies the gmail_thread command without any pre-configured scope."
+commands.deny = ["gmail_thread"]

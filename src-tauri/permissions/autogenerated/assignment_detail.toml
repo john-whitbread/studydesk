@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-assignment-detail"
+description = "Enables the assignment_detail command without any pre-configured scope."
+commands.allow = ["assignment_detail"]
+
+[[permission]]
+identifier = "deny-assignment-detail"
+description = "Denies the assignment_detail command without any pre-configured scope."
+commands.deny = ["assignment_detail"]

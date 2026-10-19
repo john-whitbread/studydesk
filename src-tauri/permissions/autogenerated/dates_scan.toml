@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dates-scan"
+description = "Enables the dates_scan command without any pre-configured scope."
+commands.allow = ["dates_scan"]
+
+[[permission]]
+identifier = "deny-dates-scan"
+description = "Denies the dates_scan command without any pre-configured scope."
+commands.deny = ["dates_scan"]

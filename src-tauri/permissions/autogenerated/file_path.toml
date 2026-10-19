@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-file-path"
+description = "Enables the file_path command without any pre-configured scope."
+commands.allow = ["file_path"]
+
+[[permission]]
+identifier = "deny-file-path"
+description = "Denies the file_path command without any pre-configured scope."
+commands.deny = ["file_path"]

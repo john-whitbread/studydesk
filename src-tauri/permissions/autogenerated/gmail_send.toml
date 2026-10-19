@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-gmail-send"
+description = "Enables the gmail_send command without any pre-configured scope."
+commands.allow = ["gmail_send"]
+
+[[permission]]
+identifier = "deny-gmail-send"
+description = "Denies the gmail_send command without any pre-configured scope."
+commands.deny = ["gmail_send"]

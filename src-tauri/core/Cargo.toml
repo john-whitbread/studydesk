@@ -1,0 +1,36 @@
+[package]
+name = "studydesk-core"
+version = "0.1.0"
+edition = "2021"
+description = "Studydesk core: encrypted vault, path guards and Canvas LMS client. No UI code."
+publish = false
+
+[dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "stream", "rustls-tls-native-roots", "http2"] }
+tokio = { version = "1", features = ["fs", "rt", "macros", "sync", "time", "io-util", "net"] }
+tokio-util = { version = "0.7", features = ["io"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+url = "2"
+argon2 = "0.5"
+chacha20poly1305 = "0.10"
+getrandom = "0.2"
+zeroize = { version = "1", features = ["derive"] }
+thiserror = "2"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+mime_guess = "2"
+dunce = "1"
+sha2 = "0.10"
+base64 = "0.22"
+regex = "1"
+pdf-extract = "0.12"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Security_Cryptography", "Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_SystemInformation"] }
+
+[dev-dependencies]
+wiremock = "0.6"
+tempfile = "3"
+tokio = { version = "1", features = ["full"] }
