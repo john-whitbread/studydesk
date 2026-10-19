@@ -1,5 +1,1 @@
-- New Calendar tab (Alt+5): month, week and list views of Canvas deadlines, key dates and your own calendars.
-- Apple Calendar: connect in Settings → Calendars with an app-specific password. Your Apple calendars show in Studydesk, and your Canvas deadlines and key dates are kept in a "Studydesk" calendar in iCloud, so they're on your iPhone too.
-- Google Calendar and others can be added read-only with their private iCal link.
-- Course names are tidied in Windows notifications and confirmations too.
-- New installs get a quick, skippable tour of the main features (replay it from Settings → Updates).
+- Fix: Apple Calendar could fail with "iCloud refused to create the Studydesk calendar". Studydesk now creates it the way iCloud expects, retries more simply if refused, and also uses a calendar you make yourself named "Studydesk".

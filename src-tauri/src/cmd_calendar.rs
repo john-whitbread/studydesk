@@ -5,7 +5,7 @@ use crate::state::AppState;
 use serde::Serialize;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
-use studydesk_core::calendar::caldav::{CalDav, CalInfo};
+use studydesk_core::calendar::caldav::{studydesk_calendar, CalDav, CalInfo};
 use studydesk_core::calendar::{fetch_feed, feed_url, ics, items, push};
 use studydesk_core::vault::{AppleCal, CalLink};
 use studydesk_core::{CoreError, Result};
@@ -13,7 +13,6 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use url::Url;
 
 const CACHE_FOR: Duration = Duration::from_secs(5 * 60);
-const STUDYDESK_SLUG: &str = "studydesk";
 /// Colours for calendar links, in order of adding.
 const LINK_COLORS: [&str; 6] = ["#0891b2", "#9333ea", "#ea580c", "#16a34a", "#db2777", "#64748b"];
 
@@ -97,7 +96,8 @@ pub async fn calendar_connect_apple(app: AppHandle, state: State<'_, AppState>, 
     let dav = CalDav::icloud(&email, &password)?;
     let home = dav.discover().await?;
     let calendars = dav.calendars(&home).await?;
-    let existing = calendars.iter().find(|c| c.href.trim_end_matches('/').ends_with(&format!("/{STUDYDESK_SLUG}"))).map(|c| c.href.clone());
+    // Reuse a Studydesk calendar from an earlier connection or another PC.
+    let existing = studydesk_calendar(&calendars).map(|c| c.href.clone());
     let apple = AppleCal {
         email: email.trim().to_string(),
         password: password.chars().filter(|c| c.is_ascii_lowercase()).collect(),
@@ -129,7 +129,8 @@ pub async fn calendar_disconnect_apple(state: State<'_, AppState>, remove_calend
         if let Some(href) = &a.studydesk_href {
             let dav = dav_of(a)?;
             let url = dav.resolve(&Url::parse(&a.home).map_err(|_| CoreError::Invalid("Bad iCloud address.".into()))?, href)?;
-            if url.path().trim_end_matches('/').ends_with(&format!("/{STUDYDESK_SLUG}")) {
+            // Only the calendar recorded as Studydesk's, and only if it's still named Studydesk.
+            if a.calendars.iter().any(|c| &c.href == href && c.name.trim().eq_ignore_ascii_case("studydesk")) {
                 dav.delete(&url).await?;
             }
         }
@@ -382,18 +383,28 @@ async fn push_once(state: &AppState) -> Result<Option<push::Outcome>> {
     let cal = match &apple.studydesk_href {
         Some(h) => dav.resolve(&home, h)?,
         None => {
-            let url = match dav.make_calendar(&home, STUDYDESK_SLUG, "Studydesk", "#1d4ed8").await {
-                Ok(u) => u,
-                // Already there (e.g. from another computer): use it.
-                Err(CoreError::Api { status: 405, .. }) => dav.resolve(&home, &format!("{STUDYDESK_SLUG}/"))?,
-                Err(e) => return Err(e),
+            // A calendar named Studydesk may already exist (made by you, another
+            // PC, or an earlier connection): use it rather than making another.
+            let calendars = dav.calendars(&home).await?;
+            let url = match studydesk_calendar(&calendars) {
+                Some(c) => dav.resolve(&home, &c.href)?,
+                None => dav.create_calendar(&home, "Studydesk", "#1d4ed8").await.map_err(|e| {
+                    CoreError::Invalid(format!(
+                        "iCloud didn't let Studydesk create its calendar ({e}). Fix: in the Calendar app on your iPhone or Mac, add an iCloud calendar named \"Studydesk\", then click Update now."
+                    ))
+                })?,
             };
+            let calendars = dav.calendars(&home).await.unwrap_or(calendars);
             let mut g = state.session.write().await;
             if let Some(a) = g.as_mut().and_then(|s| s.data.apple.as_mut()) {
                 a.studydesk_href = Some(url.to_string());
-                if !a.calendars.iter().any(|c| c.href == url.as_str()) {
-                    a.calendars.push(CalInfo { href: url.to_string(), name: "Studydesk".into(), color: "#1d4ed8".into(), writable: true });
+                // Keep show/hide choices; new calendars start shown.
+                for c in &calendars {
+                    if !a.calendars.iter().any(|x| x.href == c.href) {
+                        a.shown.insert(c.href.clone());
+                    }
                 }
+                a.calendars = calendars;
             }
             if let Some(s) = g.as_ref() {
                 state.persist(s)?;

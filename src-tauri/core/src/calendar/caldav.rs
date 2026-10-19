@@ -244,19 +244,36 @@ impl CalDav {
         Ok(out)
     }
 
-    /// Creates a calendar named `name` under the home. Returns its URL.
-    pub async fn make_calendar(&self, home: &Url, slug: &str, name: &str, color: &str) -> Result<Url> {
-        if !slug.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') || slug.is_empty() {
-            return Err(CoreError::Invalid("Bad calendar id.".into()));
+    /// Creates a calendar named `name` under the home and returns its URL.
+    ///
+    /// iCloud is stricter than the CalDAV standard: it expects the new
+    /// calendar's address to be a random ID (as Apple's own apps use), and it
+    /// can refuse some properties in the same request. So: a random UUID path,
+    /// first with name, colour and type; if refused, again with the name only.
+    pub async fn create_calendar(&self, home: &Url, name: &str, color: &str) -> Result<Url> {
+        let mut last = None;
+        for minimal in [false, true] {
+            let url = self.resolve(home, &format!("{}/", new_uuid()?))?;
+            let props = if minimal {
+                format!("<d:displayname>{}</d:displayname>", xml_escape(name))
+            } else {
+                format!(
+                    r#"<d:displayname>{}</d:displayname><a:calendar-color>{}</a:calendar-color><c:supported-calendar-component-set><c:comp name="VEVENT"/></c:supported-calendar-component-set>"#,
+                    xml_escape(name),
+                    xml_escape(color)
+                )
+            };
+            let body = format!(
+                r#"<?xml version="1.0" encoding="utf-8"?><c:mkcalendar xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:a="http://apple.com/ns/ical/"><d:set><d:prop>{props}</d:prop></d:set></c:mkcalendar>"#
+            );
+            match self.send(Method::from_bytes(b"MKCALENDAR").unwrap(), &url, None, &[], Some(body), "create the Studydesk calendar").await {
+                Ok(_) => return Ok(url),
+                // Worth one simpler retry: refused, or a property it didn't like.
+                Err(e @ (CoreError::Refused(_) | CoreError::Api { status: 400 | 403 | 409 | 415 | 422, .. })) => last = Some(e),
+                Err(e) => return Err(e),
+            }
         }
-        let url = self.resolve(home, &format!("{slug}/"))?;
-        let body = format!(
-            r#"<?xml version="1.0" encoding="utf-8"?><c:mkcalendar xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:a="http://apple.com/ns/ical/"><d:set><d:prop><d:displayname>{}</d:displayname><a:calendar-color>{}</a:calendar-color><c:supported-calendar-component-set><c:comp name="VEVENT"/></c:supported-calendar-component-set></d:prop></d:set></c:mkcalendar>"#,
-            xml_escape(name),
-            xml_escape(color)
-        );
-        self.send(Method::from_bytes(b"MKCALENDAR").unwrap(), &url, None, &[], Some(body), "create the Studydesk calendar").await?;
-        Ok(url)
+        Err(last.unwrap_or(CoreError::Refused("iCloud refused to create the Studydesk calendar.".into())))
     }
 
     /// Creates or replaces an event. Returns the new etag if iCloud sent one.
@@ -276,6 +293,21 @@ impl CalDav {
             Err(e) => Err(e),
         }
     }
+}
+
+/// Random UUID v4 in Apple's style (upper case).
+fn new_uuid() -> Result<String> {
+    let mut b = [0u8; 16];
+    getrandom::getrandom(&mut b).map_err(|_| CoreError::Io("No randomness available.".into()))?;
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    let h: String = b.iter().map(|x| format!("{x:02X}")).collect();
+    Ok(format!("{}-{}-{}-{}-{}", &h[0..8], &h[8..12], &h[12..16], &h[16..20], &h[20..32]))
+}
+
+/// The calendar called "Studydesk", if there is one Studydesk can write to.
+pub fn studydesk_calendar(cals: &[CalInfo]) -> Option<&CalInfo> {
+    cals.iter().find(|c| c.writable && c.name.trim().eq_ignore_ascii_case("studydesk"))
 }
 
 fn xml_escape(s: &str) -> String {

@@ -1,7 +1,7 @@
 use studydesk_core::calendar::{caldav::{CalDav, PutCond}, ics};
 use studydesk_core::CoreError;
 use url::Url;
-use wiremock::matchers::{header, header_exists, method, path};
+use wiremock::matchers::{body_string_contains, header, header_exists, method, path, path_regex};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
 const AUTH: &str = "Basic bWVAaWNsb3VkLmNvbTphYmNkZWZnaGlqa2xtbm9w"; // me@icloud.com:abcdefghijklmnop
@@ -43,12 +43,15 @@ END:VEVENT
 END:VCALENDAR
 </C:calendar-data></prop><status>HTTP/1.1 200 OK</status></propstat></response></multistatus>"#))
         .mount(&s).await;
-    Mock::given(method("MKCALENDAR")).and(path("/123/calendars/studydesk/")).respond_with(ResponseTemplate::new(201)).mount(&s).await;
-    Mock::given(method("PUT")).and(path("/123/calendars/studydesk/a1.ics")).and(header("if-none-match", "*")).and(header("content-type", "text/calendar; charset=utf-8"))
+    // Like iCloud: the first, full request is refused; the name-only retry works.
+    Mock::given(method("MKCALENDAR")).and(path_regex(r"^/123/calendars/[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}/$")).and(body_string_contains("calendar-color"))
+        .respond_with(ResponseTemplate::new(403)).mount(&s).await;
+    Mock::given(method("MKCALENDAR")).and(path_regex(r"^/123/calendars/[0-9A-F-]{36}/$")).respond_with(ResponseTemplate::new(201)).mount(&s).await;
+    Mock::given(method("PUT")).and(path_regex(r"^/123/calendars/[0-9A-F-]{36}/a1\.ics$")).and(header("if-none-match", "*")).and(header("content-type", "text/calendar; charset=utf-8"))
         .respond_with(ResponseTemplate::new(201).insert_header("etag", "\"v1\"")).mount(&s).await;
-    Mock::given(method("PUT")).and(path("/123/calendars/studydesk/a1.ics")).and(header("if-match", "\"v1\""))
+    Mock::given(method("PUT")).and(path_regex(r"^/123/calendars/[0-9A-F-]{36}/a1\.ics$")).and(header("if-match", "\"v1\""))
         .respond_with(ResponseTemplate::new(204).insert_header("etag", "\"v2\"")).mount(&s).await;
-    Mock::given(method("DELETE")).and(path("/123/calendars/studydesk/a1.ics")).respond_with(ResponseTemplate::new(204)).mount(&s).await;
+    Mock::given(method("DELETE")).and(path_regex(r"^/123/calendars/[0-9A-F-]{36}/a1\.ics$")).respond_with(ResponseTemplate::new(204)).mount(&s).await;
 
     let c = CalDav::with_base(base, "me@icloud.com", "abcd-efgh-ijkl-mnop", true).unwrap();
     let home_url = c.discover().await.unwrap();
@@ -63,7 +66,11 @@ END:VCALENDAR
     assert_eq!(occ.len(), 3);
     assert_eq!(occ[0].title, "Gym & run");
 
-    let cal = c.make_calendar(&home_url, "studydesk", "Studydesk", "#1d4ed8").await.unwrap();
+    let cal = c.create_calendar(&home_url, "Studydesk", "#1d4ed8").await.unwrap();
+    let mk: Vec<_> = s.received_requests().await.unwrap().into_iter().filter(|r| r.method.as_str() == "MKCALENDAR").collect();
+    assert_eq!(mk.len(), 2, "refused once, then retried with the name only");
+    assert!(!String::from_utf8_lossy(&mk[1].body).contains("calendar-color"));
+    assert_ne!(mk[0].url.path(), mk[1].url.path(), "fresh random id each try");
     let ev = cal.join("a1.ics").unwrap();
     let e1 = c.put(&ev, "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n".into(), PutCond::Create).await.unwrap();
     assert_eq!(e1, "\"v1\"");
