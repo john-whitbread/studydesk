@@ -52,6 +52,18 @@ cd src-tauri; cargo test --workspace      # vault, path guards, Canvas + Gmail c
 
 ---
 
+## 1a. Updates
+
+After the first install, Studydesk updates itself: it checks GitHub Releases
+when it opens and every 6 hours, and shows **Restart to update**. Settings →
+Updates has a manual check. Only releases signed with the project's key are
+accepted.
+
+**Publishing a release:** raise `version` in `src-tauri/Cargo.toml` and
+`package.json`, then push to `main`. The Release workflow builds the
+installer on GitHub's Windows machines, signs it with the
+`TAURI_SIGNING_PRIVATE_KEY` secret, and publishes `v<version>`.
+
 ## 2. First run: connect Canvas
 
 1. **Canvas address**: what's in your browser bar when you're signed in to Canvas.

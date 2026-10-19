@@ -1,11 +1,15 @@
 name: Release
 
-# Push a tag like v0.3.0 (matching the version in src-tauri/Cargo.toml) to
-# build the Windows installer, sign the update, and publish a GitHub Release.
-# Installed copies of Studydesk pick it up through latest.json.
+# Raising the version in src-tauri/Cargo.toml and pushing to main builds the
+# Windows installer, signs the update, and publishes Release v<version>.
+# Installed copies of Studydesk pick it up through latest.json. Pushes that
+# don't change the version do nothing. "Run workflow" on the Actions tab
+# does the same by hand.
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths: ["src-tauri/Cargo.toml", ".github/workflows/release.yml"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,30 +20,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Tag must match the app version
+      - name: Skip if this version is already released
+        id: ver
         shell: pwsh
         run: |
           $v = (Select-String -Path src-tauri/Cargo.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
-          if ("v$v" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} doesn't match Cargo.toml version $v" }
+          "tag=v$v" >> $env:GITHUB_OUTPUT
+          git ls-remote --exit-code --tags origin "refs/tags/v$v" | Out-Null
+          if ($LASTEXITCODE -eq 0) { "skip=true" >> $env:GITHUB_OUTPUT; Write-Host "v$v already released" } else { "skip=false" >> $env:GITHUB_OUTPUT }
+          exit 0
 
-      - uses: actions/setup-node@v4
+      - if: steps.ver.outputs.skip == 'false'
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - if: steps.ver.outputs.skip == 'false'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.ver.outputs.skip == 'false'
+        uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-      - run: npm ci
+      - if: steps.ver.outputs.skip == 'false'
+        run: npm ci
 
-      - uses: tauri-apps/tauri-action@v0
+      - if: steps.ver.outputs.skip == 'false'
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: Studydesk ${{ github.ref_name }}
+          tagName: ${{ steps.ver.outputs.tag }}
+          releaseName: Studydesk ${{ steps.ver.outputs.tag }}
           releaseBody: See the commits since the last release for what changed.
           releaseDraft: false
           prerelease: false
