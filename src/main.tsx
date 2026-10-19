@@ -7,6 +7,10 @@ import type { OsDrag, UpdateInfo, UploadProgress } from "./lib/types.ts";
 import { announceUpdate } from "./lib/update.ts";
 import { throttle } from "./lib/util.ts";
 import "./styles.css";
+import { applyRememberedAppearance } from "./lib/appearance.ts";
+
+// Before the first frame, so there is no flash of the wrong theme.
+applyRememberedAppearance();
 
 // No popups, ever. Links go through the backend to your normal browser.
 window.open = () => null;

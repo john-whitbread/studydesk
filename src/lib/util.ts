@@ -27,8 +27,22 @@ export function courseShort(c: Course): string {
   return c.name;
 }
 
+let colorOverrides: Record<string, string> = {};
+/** Your own course colours (Settings → Appearance), by course id. */
+export function setCourseColorOverrides(m: Record<string, string>) {
+  colorOverrides = { ...m };
+}
+
+/** The colour Canvas has for the course, or null. */
+export function canvasColor(c: Course | undefined): string | null {
+  return c?.color && /^#[0-9a-fA-F]{3,8}$/.test(c.color) ? c.color : null;
+}
+
+/** Your colour for the course if you set one, else Canvas's. */
 export function courseColor(c: Course | undefined): string {
-  return c?.color && /^#[0-9a-fA-F]{3,8}$/.test(c.color) ? c.color : "var(--text-3)";
+  const mine = c ? colorOverrides[String(c.id)] : undefined;
+  if (mine && /^#[0-9a-f]{6}$/i.test(mine)) return mine;
+  return canvasColor(c) ?? "var(--text-3)";
 }
 
 export function currentScore(c: Course): { score: number | null; grade: string | null } {

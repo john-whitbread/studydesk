@@ -35,8 +35,37 @@
   color-scheme: light;
 }
 
+:root[data-theme="dark"] {
+  --bg: #0f1114;
+  --panel: #171a1e;
+  --panel-2: #1c2025;
+  --hover: #22272d;
+  --selected: #1d2a45;
+  --border: #2a3037;
+  --border-strong: #3a414a;
+  --text: #e8eaed;
+  --text-2: #b9bfc8;
+  --text-3: #8e96a2;
+  --accent: #6f9cff;
+  --accent-hover: #8bb0ff;
+  --accent-text: #0b1530;
+  --accent-soft: #1d2a45;
+  --focus: #8bb0ff;
+  --danger: #ff8f84;
+  --danger-bg: #3a1a18;
+  --warn: #f3bb63;
+  --warn-bg: #362812;
+  --ok: #74d394;
+  --ok-bg: #15301f;
+  --info: #9dbcff;
+  --info-bg: #1b2740;
+  --neutral-bg: #262b31;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0f1114;
     --panel: #171a1e;
     --panel-2: #1c2025;
@@ -479,8 +508,16 @@ a:hover { text-decoration: underline; }
   --heat-overdue: #9b1c1c;
   --heat-none: var(--border-strong);
 }
+:root[data-theme="dark"] {
+  --heat-cool: #7aa5ff;
+  --heat-mild: #4fd1c0;
+  --heat-warm: #f0b44c;
+  --heat-hot: #ff8a4c;
+  --heat-critical: #ff5a4f;
+  --heat-overdue: #ff8f84;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --heat-cool: #7aa5ff;
     --heat-mild: #4fd1c0;
     --heat-warm: #f0b44c;
@@ -671,3 +708,19 @@ a:hover { text-decoration: underline; }
   .app.side-open .jump { flex-basis: 100%; }
   .side-scrim { display: block; position: fixed; inset: 0; z-index: 34; background: rgba(0, 0, 0, 0.3); }
 }
+
+/* ------------------------------------------------------------ appearance */
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatch {
+  display: grid; place-items: center; width: 28px; height: 28px; padding: 0; flex: none; cursor: pointer;
+  border: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+.swatch.sm { width: 22px; height: 22px; }
+.swatch:hover { transform: scale(1.08); }
+.swatch.on { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--text); }
+.cc-row { padding: 8px 0; border-top: 1px solid var(--border); }
+.cc-row:first-child { border-top: 0; padding-top: 2px; }
+.cc-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 0 4px 32px; }
+.cc-custom { position: relative; overflow: hidden; }
+.cc-custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .swatch:hover { transform: none; } }

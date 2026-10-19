@@ -393,20 +393,36 @@ fn appearance_of(p: &studydesk_core::vault::Prefs) -> Appearance {
     }
 }
 
-#[tauri::command]
-pub async fn get_appearance(state: State<'_, AppState>) -> Result<Appearance> {
-    let g = state.session.read().await;
-    let s = g.as_ref().ok_or(CoreError::Locked)?;
-    Ok(appearance_of(&s.data.prefs))
+/// Matches the Windows title bar to the chosen theme (None = follow Windows).
+fn window_theme(app: &AppHandle, theme: &str) {
+    use tauri::Manager;
+    if let Some(w) = app.get_webview_window("main") {
+        let t = match theme {
+            "light" => Some(tauri::Theme::Light),
+            "dark" => Some(tauri::Theme::Dark),
+            _ => None,
+        };
+        let _ = w.set_theme(t);
+    }
 }
 
 #[tauri::command]
-pub async fn set_appearance(state: State<'_, AppState>, theme: Option<String>, accent: Option<String>) -> Result<Appearance> {
+pub async fn get_appearance(app: AppHandle, state: State<'_, AppState>) -> Result<Appearance> {
+    let g = state.session.read().await;
+    let s = g.as_ref().ok_or(CoreError::Locked)?;
+    let a = appearance_of(&s.data.prefs);
+    window_theme(&app, &a.theme);
+    Ok(a)
+}
+
+#[tauri::command]
+pub async fn set_appearance(app: AppHandle, state: State<'_, AppState>, theme: Option<String>, accent: Option<String>) -> Result<Appearance> {
     use studydesk_core::appearance::{check_accent, check_theme};
     let mut g = state.session.write().await;
     let s = g.as_mut().ok_or(CoreError::Locked)?;
     if let Some(t) = theme {
         s.data.prefs.theme = check_theme(&t)?.to_string();
+        window_theme(&app, &s.data.prefs.theme);
     }
     if let Some(a) = accent {
         s.data.prefs.accent = check_accent(&a)?.to_string();

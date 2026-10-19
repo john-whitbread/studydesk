@@ -14,6 +14,7 @@ const at = (days: number, hour = 23, min = 59) => {
 };
 const ago = (ms: number) => new Date(now - ms).toISOString();
 
+const look: { theme: "system" | "light" | "dark"; accent: string; courseColors: Record<string, string> } = { theme: "system", accent: "blue", courseColors: {} };
 let unlocked = new URLSearchParams(location.search).get("locked") == null;
 let vault = new URLSearchParams(location.search).get("setup") == null;
 
@@ -241,6 +242,17 @@ const handlers: Record<string, (a: any) => unknown> = {
     else if (view === "sent") list = [];
     if (query) list = list.filter((t) => `${t.subject} ${t.snippet}`.toLowerCase().includes(String(query).replace(/"/g, "").toLowerCase()));
     return { items: list, next: null, estimate: list.length };
+  },
+  get_appearance: () => ({ ...look, courseColors: { ...look.courseColors } }),
+  set_appearance: ({ theme, accent }) => {
+    if (theme) look.theme = theme as typeof look.theme;
+    if (accent) look.accent = String(accent);
+    return { ...look };
+  },
+  set_course_color: ({ courseId, color }) => {
+    if (color) look.courseColors[String(courseId)] = String(color).toLowerCase();
+    else delete look.courseColors[String(courseId)];
+    return { ...look, courseColors: { ...look.courseColors } };
   },
   app_version: () => "0.2.0",
   update_check: () => ({ current: "0.2.0", available: "0.3.0", notes: "Faster email." }),

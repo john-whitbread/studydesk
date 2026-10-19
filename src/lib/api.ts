@@ -2,7 +2,7 @@
 // no filesystem, network or shell access exists on this side.
 
 import type {
-  PinnedDate, ScanResult, UpdateInfo,
+  PinnedDate, ScanResult, UpdateInfo, Appearance,
   GmailStatus, ReplyInfo, ThreadDetail, ThreadPage,
   ApiError, AssignmentDetail, Conversation, Dashboard, Entry, FileRef, Page, PickedFile, Preflight, Profile, Recipient, Settings, Status, Submission,
 } from "./types.ts";
@@ -104,6 +104,9 @@ export const api = {
   gmailConnect: (clientId: string, clientSecret: string, loginHint: string | null) => call<string>("gmail_connect", { clientId, clientSecret, loginHint }),
   gmailCancelConnect: () => call<void>("gmail_cancel_connect"),
   gmailDisconnect: () => call<void>("gmail_disconnect"),
+  getAppearance: () => call<Appearance>("get_appearance"),
+  setAppearance: (theme: string | null, accent: string | null) => call<Appearance>("set_appearance", { theme, accent }),
+  setCourseColor: (courseId: number, color: string | null) => call<Appearance>("set_course_color", { courseId, color }),
   appVersion: () => call<string>("app_version"),
   updateCheck: () => call<UpdateInfo>("update_check"),
   updateInstall: () => call<void>("update_install"),

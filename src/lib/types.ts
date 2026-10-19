@@ -198,6 +198,12 @@ export interface Scanned { courseId: number; kind: string; name: string; ok: boo
 export interface ScanResult { findings: Finding[]; scanned: Scanned[] }
 export interface PinnedDate { id: string; courseId: number; date: string; time: string | null; label: string; kind: DateKind; weight: string | null; source: string }
 
+export interface Appearance {
+  theme: "system" | "light" | "dark";
+  accent: string;
+  courseColors: Record<string, string>;
+}
+
 export interface UpdateInfo {
   current: string;
   /** Newer version, or null when up to date. */

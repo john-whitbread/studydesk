@@ -127,3 +127,35 @@ test("rail labels are short and unique", () => {
   assert.equal(l.get(3), "MA2860");
   assert.equal(l.get(4), "CS");
 });
+
+import { ACCENTS, COURSE_SWATCHES, SURFACES, contrast, resolveMode } from "./appearance.ts";
+
+test("contrast maths matches WCAG reference values", () => {
+  assert.equal(Math.round(contrast("#000000", "#ffffff") * 10) / 10, 21);
+  assert.equal(Math.round(contrast("#777777", "#ffffff") * 100) / 100, 4.48);
+});
+
+test("every accent preset is readable in light and dark mode (WCAG AA)", () => {
+  for (const a of ACCENTS) {
+    for (const mode of ["light", "dark"] as const) {
+      const t = a[mode];
+      const where = `${a.id}/${mode}`;
+      assert.ok(contrast(t.text, t.accent) >= 4.5, `${where}: button text ${contrast(t.text, t.accent).toFixed(2)}`);
+      assert.ok(contrast(t.text, t.hover) >= 4.5, `${where}: hovered button text`);
+      for (const bg of SURFACES[mode]) assert.ok(contrast(t.accent, bg) >= 4.5, `${where}: accent text on ${bg} ${contrast(t.accent, bg).toFixed(2)}`);
+      assert.ok(contrast(t.accent, t.soft) >= 4.5, `${where}: accent on its soft tint ${contrast(t.accent, t.soft).toFixed(2)}`);
+    }
+  }
+});
+
+test("course swatches stand out from the panels in both modes (WCAG 3:1 for graphics)", () => {
+  for (const c of COURSE_SWATCHES)
+    for (const mode of ["light", "dark"] as const)
+      for (const bg of SURFACES[mode]) assert.ok(contrast(c, bg) >= 3, `${c} on ${bg}: ${contrast(c, bg).toFixed(2)}`);
+});
+
+test("theme resolution", () => {
+  assert.equal(resolveMode("system", true), "dark");
+  assert.equal(resolveMode("system", false), "light");
+  assert.equal(resolveMode("light", true), "light");
+});

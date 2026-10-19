@@ -2,7 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import { api } from "./api.ts";
-import type { ApiError, Dashboard, PickedFile, PinnedDate, Profile, ScanResult, UploadProgress } from "./types.ts";
+import { applyAppearance } from "./appearance.ts";
+import type { ApiError, Appearance, Dashboard, PickedFile, PinnedDate, Profile, ScanResult, UploadProgress } from "./types.ts";
+import { setCourseColorOverrides } from "./util.ts";
 
 export type Route =
   | { view: "today" }
@@ -65,6 +67,8 @@ export interface State {
   gmail: { connected: boolean; email: string | null } | null;
   /** Narrow windows: the sidebar rail is expanded over the page. */
   sideOpen: boolean;
+  /** Theme, accent and course colours; null until the vault is open. */
+  look: Appearance | null;
   mailUnread: number | null;
   progress: Record<string, UploadProgress>;
   drag: DragState | null;
@@ -93,6 +97,7 @@ const initial: State = {
   mailCompose: null,
   gmail: null,
   sideOpen: false,
+  look: null,
   mailUnread: null,
   progress: {},
   drag: null,
@@ -168,6 +173,7 @@ export async function boot() {
     else if (!st.unlocked) setState({ phase: "locked", hasPassphrase: true });
     else {
       setState({ phase: "ready", hasPassphrase: st.passphrase });
+      void loadAppearance();
       await sync();
     }
   } catch (e) {
@@ -175,9 +181,25 @@ export async function boot() {
   }
 }
 
+/** Applies a look everywhere: <html> attributes, course colours, re-render. */
+export function applyLook(look: Appearance) {
+  applyAppearance(look.theme, look.accent);
+  setCourseColorOverrides(look.courseColors);
+  setState({ look });
+}
+
+export async function loadAppearance() {
+  try {
+    applyLook(await api.getAppearance());
+  } catch {
+    /* keeps the remembered look */
+  }
+}
+
 export async function afterUnlock(profile: Profile) {
   const st = await api.appStatus().catch(() => null);
   setState({ phase: "ready", profile, route: { view: "today" }, hasPassphrase: st?.passphrase ?? true });
+  void loadAppearance();
   await sync();
 }
 

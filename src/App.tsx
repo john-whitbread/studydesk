@@ -37,6 +37,8 @@ function Shell() {
   const compose = useStore((s) => s.compose);
   const mailCompose = useStore((s) => s.mailCompose);
   const sideOpen = useStore((s) => s.sideOpen);
+  // Course colours are read through courseColor(); re-render when they change.
+  useStore((s) => s.look);
 
   // Dropping files on an assignment (row or submit box) stages them for it.
   useEffect(() => {
