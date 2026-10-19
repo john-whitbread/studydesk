@@ -1,8 +1,9 @@
-import { FolderSearch, KeyRound, Link, Lock, Unlink } from "lucide-react";
+import { Download, FolderSearch, KeyRound, Link, Lock, RefreshCw, Unlink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.ts";
 import { lockNow, reportError, setState, sync, toast, useStore } from "../lib/store.ts";
-import type { ApiError, Settings as S } from "../lib/types.ts";
+import type { ApiError, Settings as S, UpdateInfo } from "../lib/types.ts";
+import { installUpdate } from "../lib/update.ts";
 import { courseColor } from "../lib/util.ts";
 import { Notice, PasswordInput, Spinner } from "./common.tsx";
 import { linkFolder } from "./FilesPane.tsx";
@@ -136,6 +137,8 @@ export function Settings() {
             </table>
           </section>
 
+          <Updates />
+
           <section className="panel">
             <div className="panel-head">
               <h2>Erase</h2>
@@ -163,6 +166,61 @@ export function Settings() {
         </div>
       </div>
     </>
+  );
+}
+
+function Updates() {
+  const [version, setVersion] = useState<string | null>(null);
+  const [info, setInfo] = useState<UpdateInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    api.appVersion().then(setVersion).catch(() => {});
+  }, []);
+  const check = () => {
+    setBusy(true);
+    setErr(null);
+    api
+      .updateCheck()
+      .then(setInfo)
+      .catch((e: ApiError) => setErr(e.message))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <h2>Updates</h2>
+      </div>
+      <div className="set-row">
+        <div className="k">Version {version ?? "…"}</div>
+        <div className="stack" style={{ gap: 6 }}>
+          <div className="small muted">
+            Studydesk checks GitHub for updates when it opens and every 6 hours. Updates are signed; anything not signed by the Studydesk key is refused.
+          </div>
+          {info && !info.available && <div className="small">You're up to date.</div>}
+          {info?.available && (
+            <div className="stack" style={{ gap: 4 }}>
+              <div className="small">
+                <strong>Studydesk {info.available}</strong> is available.
+              </div>
+              {info.notes && <div className="small muted" style={{ whiteSpace: "pre-wrap" }}>{info.notes}</div>}
+            </div>
+          )}
+          {err && <Notice tone="danger">{err}</Notice>}
+          <div className="row-flex">
+            {info?.available ? (
+              <button className="btn btn-primary" onClick={() => void installUpdate()}>
+                <Download size={14} /> Restart to update
+              </button>
+            ) : (
+              <button className="btn" disabled={busy} onClick={check}>
+                {busy ? <Spinner /> : <RefreshCw size={14} />} Check for updates
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

@@ -3,7 +3,8 @@ import { App } from "./App.tsx";
 import { api, listen } from "./lib/api.ts";
 import { onOsDrag } from "./lib/drag.ts";
 import { boot, getState, lockNow, navigate, onLocked, refreshUnread, reportError, setState, sync } from "./lib/store.ts";
-import type { OsDrag, UploadProgress } from "./lib/types.ts";
+import type { OsDrag, UpdateInfo, UploadProgress } from "./lib/types.ts";
+import { announceUpdate } from "./lib/update.ts";
 import { throttle } from "./lib/util.ts";
 import "./styles.css";
 
@@ -73,6 +74,7 @@ const beat = throttle(() => {
 
 // Backend events.
 void listen("locked", () => onLocked());
+void listen<UpdateInfo>("update-available", (info) => announceUpdate(info));
 void listen<{ courseIds: number[] }>("files-changed", ({ courseIds }) =>
   setState((s) => ({ fileVersion: { ...s.fileVersion, ...Object.fromEntries(courseIds.map((id) => [id, (s.fileVersion[id] ?? 0) + 1])) } })),
 );

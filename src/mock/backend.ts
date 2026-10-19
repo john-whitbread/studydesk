@@ -242,6 +242,9 @@ const handlers: Record<string, (a: any) => unknown> = {
     if (query) list = list.filter((t) => `${t.subject} ${t.snippet}`.toLowerCase().includes(String(query).replace(/"/g, "").toLowerCase()));
     return { items: list, next: null, estimate: list.length };
   },
+  app_version: () => "0.2.0",
+  update_check: () => ({ current: "0.2.0", available: "0.3.0", notes: "Faster email." }),
+  update_install: async () => (await sleep(1500), null),
   gmail_unread: () => mail.filter((t) => t.unread && t.inInbox).length,
   gmail_thread: ({ id }) => {
     const t = mail.find((x) => x.id === id)!;

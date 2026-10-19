@@ -197,3 +197,10 @@ export interface Finding {
 export interface Scanned { courseId: number; kind: string; name: string; ok: boolean; found: number; note: string | null }
 export interface ScanResult { findings: Finding[]; scanned: Scanned[] }
 export interface PinnedDate { id: string; courseId: number; date: string; time: string | null; label: string; kind: DateKind; weight: string | null; source: string }
+
+export interface UpdateInfo {
+  current: string;
+  /** Newer version, or null when up to date. */
+  available: string | null;
+  notes: string | null;
+}
