@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tour-done"
+description = "Enables the tour_done command without any pre-configured scope."
+commands.allow = ["tour_done"]
+
+[[permission]]
+identifier = "deny-tour-done"
+description = "Denies the tour_done command without any pre-configured scope."
+commands.deny = ["tour_done"]

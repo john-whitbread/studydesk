@@ -60,6 +60,7 @@ mod tests {
         let old: Prefs = serde_json::from_str(r#"{"auto_lock_minutes":0,"notify":true}"#).unwrap();
         assert_eq!((old.theme.as_str(), old.accent.as_str()), ("system", "blue"));
         assert!(old.course_colors.is_empty());
+        assert!(!old.tour_pending, "existing installs never get the first-run tour");
         let mut p = Prefs::default();
         p.course_colors.insert(101, "#ff00aa".into());
         let back: Prefs = serde_json::from_str(&serde_json::to_string(&p).unwrap()).unwrap();

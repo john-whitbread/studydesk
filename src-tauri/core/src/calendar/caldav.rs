@@ -203,7 +203,7 @@ impl CalDav {
             let writable = x.privileges.is_empty() || x.privileges.iter().any(|p| p == "write" || p == "all" || p == "write-content");
             out.push(CalInfo { href: href.to_string(), name: x.text("displayname").trim().to_string(), color, writable });
         }
-        out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        out.sort_by_key(|a| a.name.to_lowercase());
         Ok(out)
     }
 
@@ -326,8 +326,8 @@ pub fn multistatus(xml: &str) -> Result<Vec<MsResponse>> {
     let doc = roxmltree::Document::parse_with_options(xml, opts).map_err(|_| CoreError::Api { status: 0, message: "iCloud sent a response Studydesk couldn't read.".into() })?;
     let mut out = Vec::new();
     for resp in doc.descendants().filter(|n| n.is_element() && n.tag_name().name() == "response") {
-        let mut r = MsResponse::default();
-        r.href = resp.children().find(|n| n.tag_name().name() == "href").and_then(|n| n.text()).unwrap_or("").trim().to_string();
+        let href = resp.children().find(|n| n.tag_name().name() == "href").and_then(|n| n.text()).unwrap_or("").trim().to_string();
+        let mut r = MsResponse { href, ..Default::default() };
         // A response either has propstats or a bare status.
         let bare_ok = resp.children().find(|n| n.tag_name().name() == "status").and_then(|n| n.text()).is_some_and(|s| s.contains(" 200"));
         for ps in resp.children().filter(|n| n.tag_name().name() == "propstat") {

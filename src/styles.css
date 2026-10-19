@@ -831,3 +831,24 @@ a:hover { text-decoration: underline; }
 ol.steps { margin: 0; padding: 0; list-style: none; }
 .linklike { display: inline-flex; align-items: center; gap: 3px; padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; font: inherit; }
 .linklike:hover { text-decoration: underline; }
+
+/* ============================================================== tour */
+.tour { position: fixed; inset: 0; z-index: 90; }
+.tour-dim { position: absolute; inset: 0; }
+.tour-hole {
+  position: absolute; border-radius: 10px; pointer-events: none;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent);
+  transition: left .2s ease, top .2s ease, width .2s ease, height .2s ease;
+}
+.tour-card {
+  position: absolute; width: min(380px, calc(100vw - 24px)); display: flex; flex-direction: column; gap: 8px;
+  padding: 14px 16px 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg);
+}
+.tour-top { display: flex; align-items: center; justify-content: space-between; margin: -4px -6px -2px 0; }
+.tour-card h2 { font-size: 16px; font-weight: 650; }
+.tour-body { display: flex; flex-direction: column; gap: 8px; color: var(--text-2); line-height: 1.5; }
+.tour-dots { display: flex; gap: 5px; margin-top: 2px; }
+.tour-dots span { width: 6px; height: 6px; border-radius: 3px; background: var(--border-strong); transition: width .2s; }
+.tour-dots span.on { width: 18px; background: var(--accent); }
+.tour-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+@media (prefers-reduced-motion: reduce) { .tour-hole, .tour-dots span { transition: none; } }

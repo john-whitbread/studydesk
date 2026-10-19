@@ -351,14 +351,15 @@ function Week({ from, days, now }: { from: number; days: Map<number, CalItem[]>;
             return (
               <div key={d} className={`cal-col${d === today ? " today" : ""}`}>
                 {placed.map(({ item: { it, start, end }, lane, lanes }) => {
-                  const top = ((start - d) / 3600_000) * HOUR;
-                  const h = Math.max(((end - start) / 3600_000) * HOUR, 20);
                   const isDeadline = it.kind === "entry" && end === start;
+                  const h = isDeadline ? 20 : Math.max(((end - start) / 3600_000) * HOUR, 20);
+                  // Keep late items (an 11:59 PM deadline) inside the day.
+                  const top = Math.min(((start - d) / 3600_000) * HOUR, 24 * HOUR - h);
                   return (
                     <div
                       key={it.key}
                       className={`cal-block${isDeadline ? " deadline" : ""}`}
-                      style={{ top, height: isDeadline ? 20 : h, left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}
+                      style={{ top, height: h, left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}
                     >
                       <Chip it={it} where={h >= 40} />
                     </div>

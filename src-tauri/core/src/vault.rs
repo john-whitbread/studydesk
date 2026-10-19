@@ -76,6 +76,9 @@ pub struct Prefs {
     pub accent: String,
     /// Your colour for a course (`#rrggbb`), overriding Canvas's.
     pub course_colors: BTreeMap<u64, String>,
+    /// Set by first-time setup; cleared when the tour is finished or skipped.
+    /// Missing in vaults from older versions, so existing users don't get it.
+    pub tour_pending: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
@@ -101,6 +104,7 @@ impl Default for Prefs {
             theme: "system".into(),
             accent: "blue".into(),
             course_colors: BTreeMap::new(),
+            tour_pending: false,
         }
     }
 }

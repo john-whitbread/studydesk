@@ -66,6 +66,8 @@
     "allow-get-appearance",
     "allow-set-appearance",
     "allow-set-course-color",
+    "allow-tour-pending",
+    "allow-tour-done",
     "allow-calendar-status",
     "allow-calendar-connect-apple",
     "allow-calendar-disconnect-apple",

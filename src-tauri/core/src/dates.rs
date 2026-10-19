@@ -248,7 +248,7 @@ fn clean_label(line: &str, remove: &[(usize, usize)], kind: Kind, keyword: &str)
     let s = wd.replace_all(&s, " ");
     let s = Regex::new(r"\(\s*\)|\[\s*\]").unwrap().replace_all(&s, " ");
     let s = Regex::new(r"(?i)\b(at|on|by|before|from|to)\s*(?:[-–—:|,.]|\s)*$").unwrap().replace_all(s.trim(), "");
-    let s: String = s.split(|c: char| c == '|' || c == '\t' || c == '•' || c == '▪').map(str::trim).filter(|p| !p.is_empty()).collect::<Vec<_>>().join(" · ");
+    let s: String = s.split(['|', '\t', '•', '▪']).map(str::trim).filter(|p| !p.is_empty()).collect::<Vec<_>>().join(" · ");
     let s = Regex::new(r"\s+").unwrap().replace_all(&s, " ");
     let s = s.trim_matches(|c: char| c.is_whitespace() || ",;:–—-·.()".contains(c)).to_string();
     let s = if s.chars().count() > 90 { format!("{}…", s.chars().take(88).collect::<String>().trim_end()) } else { s };

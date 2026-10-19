@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tour-pending"
+description = "Enables the tour_pending command without any pre-configured scope."
+commands.allow = ["tour_pending"]
+
+[[permission]]
+identifier = "deny-tour-pending"
+description = "Denies the tour_pending command without any pre-configured scope."
+commands.deny = ["tour_pending"]

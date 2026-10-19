@@ -94,7 +94,7 @@ pub async fn setup(app: AppHandle, state: State<'_, AppState>, base_url: String,
         user_id: user.id,
         user_name: user.name.clone(),
         folder_links: Default::default(),
-        prefs: Prefs { passphrase: has_pass, ..Prefs::default() },
+        prefs: Prefs { passphrase: has_pass, tour_pending: true, ..Prefs::default() },
         google: None,
         apple: None,
         cal_links: Vec::new(),
@@ -453,4 +453,22 @@ pub async fn set_course_color(state: State<'_, AppState>, course_id: u64, color:
     }
     state.persist(s)?;
     Ok(appearance_of(&s.data.prefs))
+}
+
+/// Whether to show the first-run tour (new installs only).
+#[tauri::command]
+pub async fn tour_pending(state: State<'_, AppState>) -> Result<bool> {
+    let g = state.session.read().await;
+    Ok(g.as_ref().ok_or(CoreError::Locked)?.data.prefs.tour_pending)
+}
+
+#[tauri::command]
+pub async fn tour_done(state: State<'_, AppState>) -> Result<()> {
+    let mut g = state.session.write().await;
+    let s = g.as_mut().ok_or(CoreError::Locked)?;
+    if s.data.prefs.tour_pending {
+        s.data.prefs.tour_pending = false;
+        state.persist(s)?;
+    }
+    Ok(())
 }

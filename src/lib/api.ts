@@ -116,6 +116,8 @@ export const api = {
   calendarAddLink: (name: string, url: string) => call<CalStatus>("calendar_add_link", { name, url }),
   calendarRemoveLink: (id: string) => call<CalStatus>("calendar_remove_link", { id }),
   calendarEvents: (from: number, to: number, refresh = false) => call<ExtEvents>("calendar_events", { from, to, refresh }),
+  tourPending: () => call<boolean>("tour_pending"),
+  tourDone: () => call<void>("tour_done"),
   appVersion: () => call<string>("app_version"),
   updateCheck: () => call<UpdateInfo>("update_check"),
   updateInstall: () => call<void>("update_install"),

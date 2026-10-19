@@ -308,7 +308,7 @@ fn length_of(e: &Event, start: &DateTime<Tz>) -> Duration {
     }
     if let (Some(s), Some(end)) = (e.start, e.end.and_then(When::to_rr)) {
         let _ = s;
-        let d = end.signed_duration_since(start.clone());
+        let d = end.signed_duration_since(*start);
         if d > Duration::zero() {
             return d;
         }
@@ -330,7 +330,7 @@ pub fn occurrences(text: &str, from_ms: i64, to_ms: i64) -> Vec<Occurrence> {
     let push = |out: &mut Vec<Occurrence>, e: &Event, s: &DateTime<Tz>, len: Duration| {
         let all_day = e.start.is_some_and(|w| w.is_date());
         let start = ms_of(s, all_day);
-        let end = if all_day { ms_of(&(s.clone() + len.max(Duration::days(1))), true) } else { start + len.num_milliseconds() };
+        let end = if all_day { ms_of(&(*s + len.max(Duration::days(1))), true) } else { start + len.num_milliseconds() };
         if start < to_ms && end.max(start + 1) > from_ms && out.len() < MAX_TOTAL {
             out.push(Occurrence { uid: e.uid.clone(), title: e.summary.clone(), location: e.location.clone(), start, end, all_day });
         }
@@ -388,7 +388,7 @@ fn rule_set(rule: &str, start: &DateTime<Tz>, e: &Event) -> Option<RRuleSet> {
         }
     }
     let rr: RRule<Unvalidated> = RRule::from_str(&rule).ok()?;
-    let mut set = rr.build(start.clone()).ok()?;
+    let mut set = rr.build(*start).ok()?;
     for x in &e.exdates {
         if let Some(t) = x.to_rr() {
             // A date EXDATE on a timed event removes that day's occurrence at the same time.

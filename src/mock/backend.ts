@@ -328,6 +328,8 @@ const handlers: Record<string, (a: any) => unknown> = {
     await sleep(300);
     return { events: mockEvents(Number(from), Number(to)), errors: [] };
   },
+  tour_pending: () => new URLSearchParams(location.search).get("tour") != null,
+  tour_done: () => null,
   app_version: () => "0.2.0",
   update_check: () => ({ current: "0.2.0", available: "0.3.0", notes: "Faster email." }),
   update_install: async () => (await sleep(1500), null),

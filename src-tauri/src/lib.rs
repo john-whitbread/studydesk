@@ -84,6 +84,8 @@ macro_rules! handlers {
             cmd_session::get_appearance,
             cmd_session::set_appearance,
             cmd_session::set_course_color,
+            cmd_session::tour_pending,
+            cmd_session::tour_done,
             cmd_calendar::calendar_status,
             cmd_calendar::calendar_connect_apple,
             cmd_calendar::calendar_disconnect_apple,

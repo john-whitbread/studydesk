@@ -59,6 +59,8 @@ const COMMANDS: &[&str] = &[
     "get_appearance",
     "set_appearance",
     "set_course_color",
+    "tour_pending",
+    "tour_done",
     "calendar_status",
     "calendar_connect_apple",
     "calendar_disconnect_apple",

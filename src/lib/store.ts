@@ -68,6 +68,8 @@ export interface State {
   gmail: { connected: boolean; email: string | null } | null;
   /** Narrow windows: the sidebar rail is expanded over the page. */
   sideOpen: boolean;
+  /** The first-run tour is showing. */
+  tourOpen: boolean;
   /** Theme, accent and course colours; null until the vault is open. */
   look: Appearance | null;
   mailUnread: number | null;
@@ -98,6 +100,7 @@ const initial: State = {
   mailCompose: null,
   gmail: null,
   sideOpen: false,
+  tourOpen: false,
   look: null,
   mailUnread: null,
   progress: {},
@@ -176,6 +179,7 @@ export async function boot() {
       setState({ phase: "ready", hasPassphrase: st.passphrase });
       void loadAppearance();
       await sync();
+      void maybeStartTour();
     }
   } catch (e) {
     reportError(e);
@@ -202,6 +206,16 @@ export async function afterUnlock(profile: Profile) {
   setState({ phase: "ready", profile, route: { view: "today" }, hasPassphrase: st?.passphrase ?? true });
   void loadAppearance();
   await sync();
+  void maybeStartTour();
+}
+
+/** New installs only: the vault flag is set by first-time setup. */
+async function maybeStartTour() {
+  try {
+    if (await api.tourPending()) setState({ tourOpen: true, route: { view: "today" } });
+  } catch {
+    /* not important */
+  }
 }
 
 let syncing: Promise<void> | null = null;

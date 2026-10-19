@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { Compose } from "./components/Compose.tsx";
 import { Confetti } from "./components/Confetti.tsx";
 import { CalendarView } from "./components/CalendarView.tsx";
+import { Tour } from "./components/Tour.tsx";
 import { KeyDates } from "./components/KeyDates.tsx";
 import { CourseView } from "./components/CourseView.tsx";
 import { LockScreen, Setup } from "./components/Gate.tsx";
@@ -75,6 +76,7 @@ function Shell() {
       <DragLayer />
       <Confetti />
       <Toasts />
+      <Tour />
     </div>
   );
 }

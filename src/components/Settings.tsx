@@ -10,6 +10,7 @@ import { linkFolder } from "./FilesPane.tsx";
 import { AppearanceSettings } from "./AppearanceSettings.tsx";
 import { CalendarSettings } from "./CalendarSettings.tsx";
 import { GmailSettings } from "./GmailSettings.tsx";
+import { startTour } from "./Tour.tsx";
 
 const LOCK_OPTIONS = [5, 10, 15, 30, 60];
 
@@ -213,6 +214,9 @@ function Updates() {
           )}
           {err && <Notice tone="danger">{err}</Notice>}
           <div className="row-flex">
+            <button className="btn btn-ghost" onClick={() => startTour()}>
+              Replay the tour
+            </button>
             {info?.available ? (
               <button className="btn btn-primary" onClick={() => void installUpdate()}>
                 <Download size={14} /> Restart to update
