@@ -316,7 +316,7 @@ fn validate(p: &mut PinnedDate) -> Result<()> {
 }
 
 #[tauri::command]
-pub async fn dates_pin(state: State<'_, AppState>, item: PinnedDate) -> Result<Vec<PinnedDate>> {
+pub async fn dates_pin(app: tauri::AppHandle, state: State<'_, AppState>, item: PinnedDate) -> Result<Vec<PinnedDate>> {
     let mut item = item;
     validate(&mut item)?;
     let mut g = state.session.write().await;
@@ -325,16 +325,22 @@ pub async fn dates_pin(state: State<'_, AppState>, item: PinnedDate) -> Result<V
     s.data.prefs.pinned.push(item);
     s.data.prefs.pinned.sort_by(|a, b| (a.date.as_str(), a.time.as_deref()).cmp(&(b.date.as_str(), b.time.as_deref())));
     state.persist(s)?;
-    Ok(s.data.prefs.pinned.clone())
+    let out = s.data.prefs.pinned.clone();
+    drop(g);
+    crate::cmd_calendar::spawn_push(app);
+    Ok(out)
 }
 
 #[tauri::command]
-pub async fn dates_unpin(state: State<'_, AppState>, id: String) -> Result<Vec<PinnedDate>> {
+pub async fn dates_unpin(app: tauri::AppHandle, state: State<'_, AppState>, id: String) -> Result<Vec<PinnedDate>> {
     let mut g = state.session.write().await;
     let s = g.as_mut().ok_or(CoreError::Locked)?;
     s.data.prefs.pinned.retain(|p| p.id != id);
     state.persist(s)?;
-    Ok(s.data.prefs.pinned.clone())
+    let out = s.data.prefs.pinned.clone();
+    drop(g);
+    crate::cmd_calendar::spawn_push(app);
+    Ok(out)
 }
 
 #[tauri::command]

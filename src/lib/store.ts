@@ -12,7 +12,8 @@ export type Route =
   | { view: "inbox"; conversationId?: number }
   | { view: "mail"; threadId?: string }
   | { view: "settings" }
-  | { view: "dates" };
+  | { view: "dates" }
+  | { view: "calendar"; date?: number };
 
 export interface Toast {
   id: number;

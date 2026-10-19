@@ -183,3 +183,37 @@ test("course names: term prefix and section numbers are removed", () => {
   ]);
   assert.deepEqual([r.get(1), r.get(2)], ["2230", "2320"]);
 });
+
+import { addDays, addMonths, byDay, dayStart, layoutDay, monthGrid, weekStart, type CalItem } from "./calendar.ts";
+
+test("calendar dates: weeks, months, DST-safe days", () => {
+  const wed = new Date(2026, 9, 21, 15, 30).getTime(); // Wed Oct 21 2026
+  assert.equal(new Date(weekStart(wed)).getDay(), 0);
+  assert.equal(new Date(weekStart(wed)).getDate(), 18);
+  const g = monthGrid(wed);
+  assert.equal(g.length, 42);
+  assert.equal(new Date(g[0]).getDate(), 27, "Sun Sep 27 starts the October 2026 grid");
+  // Adding days across the November DST change keeps local midnight.
+  const d = addDays(dayStart(new Date(2026, 9, 31).getTime()), 2);
+  assert.equal(new Date(d).getHours(), 0);
+  assert.equal(new Date(d).getDate(), 2);
+  assert.equal(new Date(addMonths(new Date(2026, 0, 31).getTime(), 1)).getDate(), 28);
+});
+
+test("calendar grouping and overlap lanes", () => {
+  const at = (h: number, m = 0, day = 21) => new Date(2026, 9, day, h, m).getTime();
+  const mk = (key: string, start: number, end: number, allDay = false): CalItem =>
+    ({ kind: "ext", key, x: {} as never, start, end, allDay, title: key, color: "#000" });
+  const items = [
+    mk("lecture", at(10), at(11, 20)),
+    mk("lab", at(11), at(13)),
+    mk("trip", dayStart(at(0, 0, 20)), dayStart(at(0, 0, 23)), true), // Tue-Thu all day
+    mk("deadline", at(23, 59), at(23, 59)), // zero length
+  ];
+  const m = byDay(items, dayStart(at(0, 0, 18)), dayStart(at(0, 0, 25)));
+  assert.deepEqual(m.get(dayStart(at(0)))?.map((i) => i.key), ["trip", "lecture", "lab", "deadline"]);
+  assert.equal(m.get(dayStart(at(0, 0, 23))), undefined, "all-day end is exclusive");
+  assert.ok(m.get(dayStart(at(0, 0, 20)))?.some((i) => i.key === "trip"));
+  const lanes = layoutDay([{ start: at(10), end: at(11, 20) }, { start: at(11), end: at(13) }, { start: at(14), end: at(15) }]);
+  assert.deepEqual(lanes.map((p) => [p.lane, p.lanes]), [[0, 2], [1, 2], [0, 1]]);
+});

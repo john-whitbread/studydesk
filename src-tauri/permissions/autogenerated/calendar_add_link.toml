@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-calendar-add-link"
+description = "Enables the calendar_add_link command without any pre-configured scope."
+commands.allow = ["calendar_add_link"]
+
+[[permission]]
+identifier = "deny-calendar-add-link"
+description = "Denies the calendar_add_link command without any pre-configured scope."
+commands.deny = ["calendar_add_link"]

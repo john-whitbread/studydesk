@@ -107,6 +107,52 @@ let conversations: Conversation[] = [
 const listeners = new Map<string, Set<(p: unknown) => void>>();
 const emit = (ev: string, p: unknown) => listeners.get(ev)?.forEach((f) => f(p));
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Calendar: Apple connected by default in the mock so the tab has something to show.
+const cal: { apple: { email: string; push: boolean; shown: Set<string>; last: number } | null; links: { id: string; name: string; color: string; shown: boolean; studydesk: boolean }[] } = {
+  apple: new URLSearchParams(location.search).get("noapple") == null ? { email: "john@icloud.com", push: true, shown: new Set(["home", "work", "studydesk"]), last: Date.now() - 4 * 60_000 } : null,
+  links: [],
+};
+const APPLE_CALS = [
+  { id: "home", name: "Home", color: "#ff2968" },
+  { id: "work", name: "Co-op & clubs", color: "#1badf8" },
+  { id: "studydesk", name: "Studydesk", color: "#1d4ed8" },
+];
+function calStatus() {
+  return {
+    apple: cal.apple && {
+      email: cal.apple.email,
+      calendars: APPLE_CALS.map((c) => ({ ...c, shown: cal.apple!.shown.has(c.id), studydesk: c.id === "studydesk" })),
+      push: cal.apple.push,
+      pushing: false,
+      lastPush: { at: cal.apple.last, written: 3, removed: 0, failed: 0, error: null },
+    },
+    links: cal.links,
+  };
+}
+function mockEvents(from: number, to: number) {
+  const out: { source: string; title: string; location: string; start: number; end: number; allDay: boolean; color: string; calendar: string }[] = [];
+  const shown = (id: string) => cal.apple?.shown.has(id);
+  for (let d = new Date(from); d.getTime() < to; d.setDate(d.getDate() + 1)) {
+    const y = d.getFullYear(), m = d.getMonth(), day = d.getDate(), dow = d.getDay();
+    const at = (h: number, min = 0) => new Date(y, m, day, h, min).getTime();
+    if (shown("home")) {
+      if (dow === 1 || dow === 3 || dow === 5) out.push({ source: "home", title: "Run – 8 km", location: "", start: at(7), end: at(7, 45), allDay: false, color: "#ff2968", calendar: "Home" });
+      if (dow === 6) out.push({ source: "home", title: "Brunch with family", location: "Oshawa", start: at(11), end: at(13), allDay: false, color: "#ff2968", calendar: "Home" });
+    }
+    if (shown("work")) {
+      if (dow === 2 || dow === 4) out.push({ source: "work", title: "MECE 2420U Lecture", location: "ERC 1050", start: at(10), end: at(11, 20), allDay: false, color: "#1badf8", calendar: "Co-op & clubs" });
+      if (dow === 2) out.push({ source: "work", title: "OTNET Fuel Handling meeting", location: "ACE 2010", start: at(11), end: at(12), allDay: false, color: "#1badf8", calendar: "Co-op & clubs" });
+      if (dow === 3) out.push({ source: "work", title: "Co-op info session", location: "Online", start: at(16), end: at(17), allDay: false, color: "#1badf8", calendar: "Co-op & clubs" });
+    }
+    if (day === 26 && m === 9 && shown("home")) out.push({ source: "home", title: "Reading week", location: "", start: at(0), end: new Date(y, m, day + 5).getTime(), allDay: true, color: "#ff2968", calendar: "Home" });
+  }
+  for (const l of cal.links.filter((x) => x.shown)) {
+    const d = new Date(from);
+    out.push({ source: l.id, title: `${l.name} event`, location: "", start: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 3, 18).getTime(), end: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 3, 19).getTime(), allDay: false, color: l.color, calendar: l.name });
+  }
+  return out.filter((e) => e.end > from && e.start < to);
+}
 const fail = (kind: string, message: string) => Promise.reject({ kind, message, retryAfter: null });
 
 let pickSeq = 1;
@@ -253,6 +299,34 @@ const handlers: Record<string, (a: any) => unknown> = {
     if (color) look.courseColors[String(courseId)] = String(color).toLowerCase();
     else delete look.courseColors[String(courseId)];
     return { ...look, courseColors: { ...look.courseColors } };
+  },
+  // -------------------------------------------------------------- calendar
+  calendar_status: () => calStatus(),
+  calendar_connect_apple: async ({ email, password }) => {
+    await sleep(900);
+    if (String(password).replace(/[^a-z]/g, "").length !== 16) throw { kind: "invalid", message: "That doesn't look like an app-specific password. It's 16 letters, shown as xxxx-xxxx-xxxx-xxxx.", retryAfter: null };
+    cal.apple = { email: String(email), push: true, shown: new Set(["home", "work", "studydesk"]), last: Date.now() };
+    return calStatus();
+  },
+  calendar_disconnect_apple: () => ((cal.apple = null), calStatus()),
+  calendar_set_shown: ({ id, shown }) => {
+    const l = cal.links.find((x) => x.id === id);
+    if (l) l.shown = Boolean(shown);
+    else if (cal.apple) shown ? cal.apple.shown.add(String(id)) : cal.apple.shown.delete(String(id));
+    return calStatus();
+  },
+  calendar_set_push: ({ on }) => (cal.apple && (cal.apple.push = Boolean(on)), calStatus()),
+  calendar_push_now: async () => (await sleep(600), cal.apple && (cal.apple.last = Date.now()), null),
+  calendar_add_link: async ({ name, url }) => {
+    await sleep(500);
+    if (!/^(https|webcal):\/\//.test(String(url))) throw { kind: "invalid", message: "Calendar links must start with https:// or webcal://.", retryAfter: null };
+    cal.links.push({ id: `link-${cal.links.length + 1}`, name: String(name), color: "#9333ea", shown: true, studydesk: false });
+    return calStatus();
+  },
+  calendar_remove_link: ({ id }) => ((cal.links = cal.links.filter((l) => l.id !== id)), calStatus()),
+  calendar_events: async ({ from, to }) => {
+    await sleep(300);
+    return { events: mockEvents(Number(from), Number(to)), errors: [] };
   },
   app_version: () => "0.2.0",
   update_check: () => ({ current: "0.2.0", available: "0.3.0", notes: "Faster email." }),

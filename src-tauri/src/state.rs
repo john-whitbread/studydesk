@@ -44,6 +44,13 @@ pub struct AppState {
     pub gmail_cancel: std::sync::Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     /// Mirror of prefs.close_to_tray, readable while locked and from window events.
     pub close_to_tray: std::sync::atomic::AtomicBool,
+    /// Downloaded calendar data by source+window, with when it was fetched.
+    /// Cleared on lock.
+    pub cal_cache: Mutex<std::collections::HashMap<String, (std::time::Instant, String)>>,
+    /// An Apple Calendar update is running.
+    pub cal_pushing: std::sync::atomic::AtomicBool,
+    /// Result of the last Apple Calendar update, for Settings.
+    pub cal_report: std::sync::Mutex<Option<crate::cmd_calendar::PushReport>>,
 }
 
 impl AppState {
@@ -57,6 +64,9 @@ impl AppState {
             submit_gate: Mutex::new(()),
             gmail_cancel: std::sync::Mutex::new(None),
             close_to_tray: std::sync::atomic::AtomicBool::new(true),
+            cal_cache: Mutex::new(std::collections::HashMap::new()),
+            cal_pushing: std::sync::atomic::AtomicBool::new(false),
+            cal_report: std::sync::Mutex::new(None),
         }
     }
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-calendar-connect-apple"
+description = "Enables the calendar_connect_apple command without any pre-configured scope."
+commands.allow = ["calendar_connect_apple"]
+
+[[permission]]
+identifier = "deny-calendar-connect-apple"
+description = "Denies the calendar_connect_apple command without any pre-configured scope."
+commands.deny = ["calendar_connect_apple"]

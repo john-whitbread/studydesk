@@ -119,6 +119,69 @@ pub struct VaultData {
     /// School Gmail connection, if set up.
     #[serde(default)]
     pub google: Option<GoogleAuth>,
+    /// iCloud Calendar connection, if set up.
+    #[serde(default)]
+    pub apple: Option<AppleCal>,
+    /// Read-only calendar links (Google secret address, Outlook, etc.).
+    #[serde(default)]
+    pub cal_links: Vec<CalLink>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
+pub struct AppleCal {
+    pub email: String,
+    /// App-specific password (16 letters). Never the Apple ID password.
+    pub password: String,
+    /// Calendar home URL on iCloud.
+    pub home: String,
+    #[serde(default)]
+    pub calendars: Vec<crate::calendar::caldav::CalInfo>,
+    /// Calendar hrefs shown in Studydesk.
+    #[serde(default)]
+    pub shown: BTreeSet<String>,
+    /// Keep a "Studydesk" calendar in iCloud with deadlines and key dates.
+    #[serde(default)]
+    pub push: bool,
+    #[serde(default)]
+    pub studydesk_href: Option<String>,
+    /// uid -> what was last written, so only changes are sent.
+    #[serde(default)]
+    pub pushed: BTreeMap<String, Pushed>,
+}
+
+impl Drop for AppleCal {
+    fn drop(&mut self) {
+        self.password.zeroize();
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, Default)]
+pub struct Pushed {
+    pub href: String,
+    pub etag: String,
+    pub hash: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
+pub struct CalLink {
+    pub id: String,
+    pub name: String,
+    /// Secret: the link itself grants access to the calendar.
+    pub url: String,
+    #[serde(default)]
+    pub color: String,
+    #[serde(default = "yes")]
+    pub shown: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+impl Drop for CalLink {
+    fn drop(&mut self) {
+        self.url.zeroize();
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
@@ -305,6 +368,8 @@ mod tests {
             folder_links: links,
             prefs: Prefs::default(),
             google: None,
+            apple: None,
+            cal_links: Vec::new(),
         }
     }
 

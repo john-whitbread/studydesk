@@ -212,3 +212,14 @@ export interface UpdateInfo {
   available: string | null;
   notes: string | null;
 }
+
+// ------------------------------------------------------------- calendar
+
+export interface CalView { id: string; name: string; color: string; shown: boolean; studydesk: boolean }
+export interface PushReport { at: number; written: number; removed: number; failed: number; error: string | null }
+export interface CalStatus {
+  apple: { email: string; calendars: CalView[]; push: boolean; pushing: boolean; lastPush: PushReport | null } | null;
+  links: CalView[];
+}
+export interface ExtEvent { source: string; title: string; location: string; start: number; end: number; allDay: boolean; color: string; calendar: string }
+export interface ExtEvents { events: ExtEvent[]; errors: { calendar: string; message: string }[] }

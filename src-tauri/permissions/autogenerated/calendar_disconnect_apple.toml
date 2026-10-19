@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-calendar-disconnect-apple"
+description = "Enables the calendar_disconnect_apple command without any pre-configured scope."
+commands.allow = ["calendar_disconnect_apple"]
+
+[[permission]]
+identifier = "deny-calendar-disconnect-apple"
+description = "Denies the calendar_disconnect_apple command without any pre-configured scope."
+commands.deny = ["calendar_disconnect_apple"]

@@ -1,4 +1,4 @@
-import { CalendarClock, CalendarDays, Inbox, Lock, Mail, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, Settings, TriangleAlert } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarRange, Inbox, Lock, Mail, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, Settings, TriangleAlert } from "lucide-react";
 import { useMemo } from "react";
 import { actionCounts, items, visibleCourses } from "../lib/derive.ts";
 import { lockNow, navigate, setState, sync, useStore } from "../lib/store.ts";
@@ -80,6 +80,10 @@ export function Sidebar() {
           <CalendarClock size={16} />
           <span className="nl">Key dates</span>
           {pinnedSoon > 0 && <span className="count" title="Pinned key dates in the next 7 days">{pinnedSoon}</span>}
+        </button>
+        <button className={`nav-item${route.view === "calendar" ? " active" : ""}`} onClick={() => go({ view: "calendar" })} aria-label="Calendar" data-tip="Calendar">
+          <CalendarRange size={16} />
+          <span className="nl">Calendar</span>
         </button>
         <button className={`nav-item${route.view === "inbox" ? " active" : ""}`} onClick={() => go({ view: "inbox" })} aria-label="Canvas inbox" data-tip="Canvas inbox">
           <Inbox size={16} />

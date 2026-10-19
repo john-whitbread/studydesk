@@ -5,7 +5,9 @@
 //! guards and the Canvas LMS client. The Tauri app crate is a thin shell.
 
 pub mod appearance;
+pub mod calendar;
 pub mod canvas;
+pub mod courses;
 pub mod dates;
 pub mod dpapi;
 pub mod error;

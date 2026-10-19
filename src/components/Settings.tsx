@@ -8,6 +8,7 @@ import { courseColor } from "../lib/util.ts";
 import { Notice, PasswordInput, Spinner } from "./common.tsx";
 import { linkFolder } from "./FilesPane.tsx";
 import { AppearanceSettings } from "./AppearanceSettings.tsx";
+import { CalendarSettings } from "./CalendarSettings.tsx";
 import { GmailSettings } from "./GmailSettings.tsx";
 
 const LOCK_OPTIONS = [5, 10, 15, 30, 60];
@@ -53,6 +54,7 @@ export function Settings() {
           </section>
 
           <AppearanceSettings />
+          <CalendarSettings />
 
           <GmailSettings />
 

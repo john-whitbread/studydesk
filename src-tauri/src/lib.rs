@@ -1,5 +1,6 @@
 //! Studydesk app shell: window hardening, command registration, auto-lock.
 
+mod cmd_calendar;
 mod cmd_data;
 mod cmd_dates;
 mod cmd_files;
@@ -83,6 +84,15 @@ macro_rules! handlers {
             cmd_session::get_appearance,
             cmd_session::set_appearance,
             cmd_session::set_course_color,
+            cmd_calendar::calendar_status,
+            cmd_calendar::calendar_connect_apple,
+            cmd_calendar::calendar_disconnect_apple,
+            cmd_calendar::calendar_set_shown,
+            cmd_calendar::calendar_set_push,
+            cmd_calendar::calendar_push_now,
+            cmd_calendar::calendar_add_link,
+            cmd_calendar::calendar_remove_link,
+            cmd_calendar::calendar_events,
             cmd_gmail::gmail_modify,
             cmd_gmail::gmail_send,
             cmd_gmail::gmail_save_attachment,

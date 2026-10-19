@@ -68,6 +68,7 @@ document.addEventListener("keydown", (e) => {
   else if (e.altKey && e.key === "2") navigate({ view: "inbox" });
   else if (e.altKey && e.key === "3") navigate({ view: "mail" });
   else if (e.altKey && e.key === "4") navigate({ view: "dates" });
+  else if (e.altKey && e.key === "5") navigate({ view: "calendar" });
 });
 
 // Activity heartbeat for auto-lock (the backend also watches system idle on Windows).

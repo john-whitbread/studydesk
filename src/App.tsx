@@ -2,6 +2,7 @@ import { FileText, X } from "lucide-react";
 import { useEffect } from "react";
 import { Compose } from "./components/Compose.tsx";
 import { Confetti } from "./components/Confetti.tsx";
+import { CalendarView } from "./components/CalendarView.tsx";
 import { KeyDates } from "./components/KeyDates.tsx";
 import { CourseView } from "./components/CourseView.tsx";
 import { LockScreen, Setup } from "./components/Gate.tsx";
@@ -66,6 +67,7 @@ function Shell() {
         {route.view === "mail" && <Mail threadId={route.threadId} />}
         {route.view === "settings" && <Settings />}
         {route.view === "dates" && <KeyDates />}
+        {route.view === "calendar" && <CalendarView date={route.date} />}
       </main>
       {palette && <Palette />}
       {compose && <Compose init={compose} />}

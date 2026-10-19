@@ -13,6 +13,8 @@ use tauri_plugin_opener::OpenerExt;
 pub struct CourseOut {
     #[serde(flatten)]
     course: Course,
+    /// Canvas's own name; `course.name` / `course_code` are tidied (courses::tidy).
+    full_name: String,
     color: Option<String>,
     folder: Option<String>,
     hidden: bool,
@@ -42,7 +44,7 @@ fn label(c: &Course) -> String {
 }
 
 #[tauri::command]
-pub async fn sync_all(state: State<'_, AppState>) -> Result<Dashboard> {
+pub async fn sync_all(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<Dashboard> {
     let canvas = state.canvas().await?;
     let (user_id, user_name, links, hidden) = {
         let g = state.session.read().await;
@@ -51,7 +53,14 @@ pub async fn sync_all(state: State<'_, AppState>) -> Result<Dashboard> {
     };
 
     let (courses, colors, unread) = tokio::join!(canvas.courses(), canvas.colors(), canvas.unread_count());
-    let courses = courses?; // without courses there is nothing to show
+    let mut courses = courses?; // without courses there is nothing to show
+    // "202609 - Statics - MECE-2230U-002" -> code "MECE 2230U", name "Statics".
+    let full_names: std::collections::HashMap<u64, String> = courses.iter().map(|c| (c.id, c.name.clone())).collect();
+    for c in &mut courses {
+        let (code, title) = studydesk_core::courses::tidy(&c.course_code, &c.name);
+        c.course_code = code;
+        c.name = title;
+    }
     let mut notices = Vec::new();
     let colors = colors.map(|c| c.custom_colors).unwrap_or_default();
     let unread_count = match unread {
@@ -118,6 +127,7 @@ pub async fn sync_all(state: State<'_, AppState>) -> Result<Dashboard> {
     let courses = courses
         .into_iter()
         .map(|c| CourseOut {
+            full_name: full_names.get(&c.id).cloned().unwrap_or_default(),
             color: colors.get(&format!("course_{}", c.id)).cloned(),
             folder: links.get(&c.id).cloned(),
             hidden: hidden.contains(&c.id),
@@ -125,6 +135,8 @@ pub async fn sync_all(state: State<'_, AppState>) -> Result<Dashboard> {
         })
         .collect();
 
+    // Keep the Studydesk calendar in iCloud up to date (no-op if not set up).
+    crate::cmd_calendar::spawn_push(app);
     Ok(Dashboard {
         user_id,
         user_name,

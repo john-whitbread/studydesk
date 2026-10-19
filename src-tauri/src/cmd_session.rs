@@ -96,6 +96,8 @@ pub async fn setup(app: AppHandle, state: State<'_, AppState>, base_url: String,
         folder_links: Default::default(),
         prefs: Prefs { passphrase: has_pass, ..Prefs::default() },
         google: None,
+        apple: None,
+        cal_links: Vec::new(),
     };
     let data_for_seal = data.clone();
     let (bytes, key) = tauri::async_runtime::spawn_blocking(move || vault::create(&passphrase, &data_for_seal, KdfParams::DEFAULT))
@@ -143,6 +145,7 @@ pub async fn unlock(app: AppHandle, state: State<'_, AppState>, passphrase: Stri
 pub async fn do_lock(app: &AppHandle, state: &AppState) {
     // Dropping the session zeroizes the token and key and stops the watcher.
     let was = state.session.write().await.take();
+    state.cal_cache.lock().await.clear();
     if was.is_some() {
         let _ = app.emit("locked", ());
     }

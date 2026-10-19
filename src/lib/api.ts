@@ -2,7 +2,7 @@
 // no filesystem, network or shell access exists on this side.
 
 import type {
-  PinnedDate, ScanResult, UpdateInfo, Appearance,
+  PinnedDate, ScanResult, UpdateInfo, CalStatus, ExtEvents, Appearance,
   GmailStatus, ReplyInfo, ThreadDetail, ThreadPage,
   ApiError, AssignmentDetail, Conversation, Dashboard, Entry, FileRef, Page, PickedFile, Preflight, Profile, Recipient, Settings, Status, Submission,
 } from "./types.ts";
@@ -107,6 +107,15 @@ export const api = {
   getAppearance: () => call<Appearance>("get_appearance"),
   setAppearance: (theme: string | null, accent: string | null) => call<Appearance>("set_appearance", { theme, accent }),
   setCourseColor: (courseId: number, color: string | null) => call<Appearance>("set_course_color", { courseId, color }),
+  calendarStatus: () => call<CalStatus>("calendar_status"),
+  calendarConnectApple: (email: string, password: string) => call<CalStatus>("calendar_connect_apple", { email, password }),
+  calendarDisconnectApple: (removeCalendar: boolean) => call<CalStatus>("calendar_disconnect_apple", { removeCalendar }),
+  calendarSetShown: (id: string, shown: boolean) => call<CalStatus>("calendar_set_shown", { id, shown }),
+  calendarSetPush: (on: boolean) => call<CalStatus>("calendar_set_push", { on }),
+  calendarPushNow: () => call<void>("calendar_push_now"),
+  calendarAddLink: (name: string, url: string) => call<CalStatus>("calendar_add_link", { name, url }),
+  calendarRemoveLink: (id: string) => call<CalStatus>("calendar_remove_link", { id }),
+  calendarEvents: (from: number, to: number, refresh = false) => call<ExtEvents>("calendar_events", { from, to, refresh }),
   appVersion: () => call<string>("app_version"),
   updateCheck: () => call<UpdateInfo>("update_check"),
   updateInstall: () => call<void>("update_install"),
