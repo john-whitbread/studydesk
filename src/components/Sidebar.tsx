@@ -84,13 +84,13 @@ export function Sidebar() {
         <button className={`nav-item${route.view === "inbox" ? " active" : ""}`} onClick={() => go({ view: "inbox" })} aria-label="Canvas inbox" data-tip="Canvas inbox">
           <Inbox size={16} />
           <span className="nl">Canvas inbox</span>
-          {!!unread && <span className="count badge" title={`${unread} unread`}>{unread}</span>}
+          {!!unread && <span className="count badge" title={`${unread} unread`}>{unread > 999 ? "999+" : unread}</span>}
         </button>
         <button className={`nav-item${route.view === "mail" ? " active" : ""}`} onClick={() => go({ view: "mail" })} aria-label="Email" data-tip="Email">
           <Mail size={16} />
           <span className="nl">Email</span>
           {gmail?.connected ? (
-            !!mailUnread && <span className="count badge" title={`${mailUnread} unread`}>{mailUnread}</span>
+            !!mailUnread && <span className="count badge" title={`${mailUnread} unread`}>{mailUnread > 999 ? "999+" : mailUnread}</span>
           ) : (
             <span className="count" style={{ fontWeight: 400 }}>Set up</span>
           )}
@@ -102,7 +102,7 @@ export function Sidebar() {
           const n = counts.per.get(c.id) ?? { overdue: 0, soon: 0 };
           const active = route.view === "course" && route.courseId === c.id;
           return (
-            <button key={c.id} className={`nav-item course-item${active ? " active" : ""}`} onClick={() => go({ view: "course", courseId: c.id })} title={c.name}>
+            <button key={c.id} className={`nav-item course-item${active ? " active" : ""}`} onClick={() => go({ view: "course", courseId: c.id })} title={c.full_name || c.name}>
               <span className="dot" style={{ background: courseColor(c) }} />
               <span className="ci-rail" aria-hidden>{rail.get(c.id)}</span>
               <span className="ci-text">

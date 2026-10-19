@@ -159,3 +159,27 @@ test("theme resolution", () => {
   assert.equal(resolveMode("system", false), "light");
   assert.equal(resolveMode("light", true), "light");
 });
+
+import { tidyCourse } from "./util.ts";
+
+test("course names: term prefix and section numbers are removed", () => {
+  const t = (course_code: string, name: string) => {
+    const c = tidyCourse({ course_code, name });
+    return [c.course_code, c.name];
+  };
+  assert.deepEqual(t("202609 - Differential Equations - MATH-2860U-001", "202609 - Differential Equations - MATH-2860U-001"), ["MATH 2860U", "Differential Equations"]);
+  assert.deepEqual(t("202609 - Statics - MECE-2230U-002", "202609 - Statics - MECE-2230U-002"), ["MECE 2230U", "Statics"]);
+  assert.deepEqual(t("MECE-2230U", "202609 - Statics"), ["MECE 2230U", "Statics"]);
+  assert.deepEqual(t("202609 - Nuclear Plant Operation (NUCL 2020U)", "202609 - Nuclear Plant Operation (NUCL 2020U)"), ["NUCL 2020U", "Nuclear Plant Operation"]);
+  assert.deepEqual(t("MECE 2420U", "Solid Mechanics II"), ["MECE 2420U", "Solid Mechanics II"]);
+  // Not a course code: kept as is.
+  assert.deepEqual(t("AI-Students", "Academic Integrity Modules for Students"), ["AI-Students", "Academic Integrity Modules for Students"]);
+  assert.deepEqual(t("202609 - Prof Competencies", "202609 - Prof Competencies"), ["Prof Competencies", "Prof Competencies"]);
+  assert.equal(tidyCourse({ course_code: "x", name: "202609 - Statics - MECE-2230U" }).full_name, "202609 - Statics - MECE-2230U");
+  // Rail labels after tidying no longer all read "2026".
+  const r = railLabels([
+    tidyCourse({ id: 1, course_code: "202609 - Statics - MECE-2230U", name: "202609 - Statics - MECE-2230U" }),
+    tidyCourse({ id: 2, course_code: "202609 - Thermodynamics - MECE-2320U", name: "202609 - Thermodynamics - MECE-2320U" }),
+  ]);
+  assert.deepEqual([r.get(1), r.get(2)], ["2230", "2320"]);
+});

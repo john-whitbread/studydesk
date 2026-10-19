@@ -20,6 +20,27 @@ export function fuzzyScore(query: string, text: string): number {
   return Math.max(1, 300 - gaps);
 }
 
+const TERM_PREFIX = /^\s*\d{6}\s*[-–—:|]\s*/; // "202609 - "
+const CODE = /\b([A-Z]{2,5})[\s_-]*(\d{4}[A-Z]?)\b/; // MECE-2230U, MATH 2860U
+// The code as it appears in a name, with an optional section ("-001", "(002)") and separators around it.
+const CODE_IN_NAME = /\s*[-–—|:(]?\s*\b[A-Z]{2,5}[\s_-]*\d{4}[A-Z]?\b(?:[\s_-]*\(?\d{3}\)?)?\)?\s*[-–—|:)]?\s*/;
+
+/** Canvas names like "202609 - Differential Equations - MATH-2860U-001" become
+ *  code "MATH 2860U" and name "Differential Equations". Courses without a
+ *  recognisable code keep their own code and name (minus a term prefix). The
+ *  original Canvas name stays in full_name. */
+export function tidyCourse<T extends { course_code: string; name: string }>(c: T): T & { full_name: string } {
+  const rawCode = (c.course_code ?? "").trim();
+  const rawName = (c.name ?? "").trim();
+  const m = CODE.exec(rawCode) ?? CODE.exec(rawName);
+  const code = m ? `${m[1]} ${m[2]}` : rawCode.replace(TERM_PREFIX, "").trim();
+  let title = rawName.replace(TERM_PREFIX, "");
+  if (m) title = title.replace(CODE_IN_NAME, " ");
+  title = title.replace(/^[\s\-–—|:]+|[\s\-–—|:]+$/g, "").replace(/\s{2,}/g, " ").trim();
+  if (!title || title === code) title = rawName.replace(TERM_PREFIX, "").trim() || rawName;
+  return { ...c, course_code: code || title, name: title, full_name: rawName };
+}
+
 /** "MECE 2420U" style short code, falling back to the name. */
 export function courseShort(c: Course): string {
   const code = c.course_code?.trim();

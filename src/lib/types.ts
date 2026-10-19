@@ -9,6 +9,8 @@ export interface Course {
   name: string;
   original_name?: string | null;
   course_code: string;
+  /** Canvas's own name, before tidyCourse shortened it. */
+  full_name?: string;
   term?: Term | null;
   enrollments: Enrollment[];
   hide_final_grades?: boolean | null;

@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import { api } from "./api.ts";
 import { applyAppearance } from "./appearance.ts";
 import type { ApiError, Appearance, Dashboard, PickedFile, PinnedDate, Profile, ScanResult, UploadProgress } from "./types.ts";
-import { setCourseColorOverrides } from "./util.ts";
+import { setCourseColorOverrides, tidyCourse } from "./util.ts";
 
 export type Route =
   | { view: "today" }
@@ -210,6 +210,7 @@ export function sync(): Promise<void> {
   syncing = (async () => {
     try {
       const dash = await api.syncAll();
+      dash.courses = dash.courses.map(tidyCourse);
       setState({ dash, unread: dash.unreadCount, syncError: null });
       api.datesPinned().then((pinned) => setState({ pinned })).catch(() => {});
       void refreshGmail();

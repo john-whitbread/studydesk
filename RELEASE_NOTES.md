@@ -1,0 +1,4 @@
+- Appearance: choose System, Light or Dark, pick an accent colour, and set your own colour for each course (Settings → Appearance).
+- Works on narrow and vertical screens: the sidebar folds into a slim strip, courses show one pane at a time, and email/messages show the list or the message.
+- Course names from Canvas are tidied: "202609 - Statics - MECE-2230U-002" shows as MECE 2230U · Statics.
+- Large unread counts show as 999+.

@@ -30,6 +30,15 @@ jobs:
           if ($LASTEXITCODE -eq 0) { "skip=true" >> $env:GITHUB_OUTPUT; Write-Host "v$v already released" } else { "skip=false" >> $env:GITHUB_OUTPUT }
           exit 0
 
+      - name: Release notes
+        id: notes
+        shell: pwsh
+        run: |
+          $n = if (Test-Path RELEASE_NOTES.md) { Get-Content RELEASE_NOTES.md -Raw } else { "Improvements and fixes." }
+          "body<<NOTES_EOF" >> $env:GITHUB_OUTPUT
+          $n.Trim() >> $env:GITHUB_OUTPUT
+          "NOTES_EOF" >> $env:GITHUB_OUTPUT
+
       - if: steps.ver.outputs.skip == 'false'
         uses: actions/setup-node@v4
         with:
@@ -53,7 +62,7 @@ jobs:
         with:
           tagName: ${{ steps.ver.outputs.tag }}
           releaseName: Studydesk ${{ steps.ver.outputs.tag }}
-          releaseBody: See the commits since the last release for what changed.
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
