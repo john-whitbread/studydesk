@@ -4,6 +4,7 @@
 //! window: the encrypted vault, the passphrase lockout, filesystem guards, URL
 //! guards and the Canvas LMS client. The Tauri app crate is a thin shell.
 
+pub mod appearance;
 pub mod canvas;
 pub mod dates;
 pub mod dpapi;

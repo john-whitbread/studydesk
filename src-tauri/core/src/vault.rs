@@ -70,6 +70,12 @@ pub struct Prefs {
     pub pinned: Vec<PinnedDate>,
     /// Scanner findings you dismissed, by id.
     pub dismissed: BTreeSet<String>,
+    /// system | light | dark
+    pub theme: String,
+    /// One of appearance::ACCENTS.
+    pub accent: String,
+    /// Your colour for a course (`#rrggbb`), overriding Canvas's.
+    pub course_colors: BTreeMap<u64, String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
@@ -90,7 +96,12 @@ pub struct PinnedDate {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { auto_lock_minutes: 0, hidden_courses: BTreeSet::new(), passphrase: false, notify: true, close_to_tray: true, notified: BTreeSet::new(), pinned: Vec::new(), dismissed: BTreeSet::new() }
+        Prefs { auto_lock_minutes: 0, hidden_courses: BTreeSet::new(), passphrase: false, notify: true, close_to_tray: true, notified: BTreeSet::new(), pinned: Vec::new(),
+            dismissed: BTreeSet::new(),
+            theme: "system".into(),
+            accent: "blue".into(),
+            course_colors: BTreeMap::new(),
+        }
     }
 }
 
