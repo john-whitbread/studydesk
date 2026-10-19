@@ -54,7 +54,7 @@
       "icons/icon.ico",
       "icons/icon.png"
     ],
-    "shortDescription": "Canvas and your course folders in one window",
+    "shortDescription": "Canvas, course folders, school email and calendar in one window",
     "windows": {
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
@@ -62,7 +62,8 @@
       "nsis": {
         "installMode": "currentUser"
       }
-    }
+    },
+    "longDescription": "Studydesk brings Canvas LMS, your course folders, school Gmail and your calendar (including two-way Apple Calendar) into one Windows app: see what's due next with heat colours and countdowns, submit straight from your files, and keep messages and deadlines in one place."
   },
   "plugins": {
     "updater": {

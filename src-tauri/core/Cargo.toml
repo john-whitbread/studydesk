@@ -2,7 +2,7 @@
 name = "studydesk-core"
 version = "0.1.0"
 edition = "2021"
-description = "Studydesk core: encrypted vault, path guards and Canvas LMS client. No UI code."
+description = "Studydesk core: encrypted vault, path guards, Canvas/Gmail/iCloud clients and iCalendar. No UI code."
 publish = false
 
 [dependencies]
