@@ -7,6 +7,7 @@ mod cmd_gmail;
 mod cmd_inbox;
 mod cmd_session;
 mod cmd_submit;
+mod cmd_update;
 mod state;
 mod ui;
 mod watch;
@@ -76,6 +77,9 @@ macro_rules! handlers {
             cmd_gmail::gmail_threads,
             cmd_gmail::gmail_thread,
             cmd_gmail::gmail_unread,
+            cmd_update::update_check,
+            cmd_update::update_install,
+            cmd_update::app_version,
             cmd_gmail::gmail_modify,
             cmd_gmail::gmail_send,
             cmd_gmail::gmail_save_attachment,
@@ -249,6 +253,8 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(cmd_update::Pending::default())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
@@ -258,6 +264,7 @@ pub fn run() {
             build_tray(app.handle())?;
             spawn_auto_lock(app.handle().clone());
             spawn_reminders(app.handle().clone());
+            cmd_update::spawn_checks(app.handle().clone());
             Ok(())
         })
         .invoke_handler(handlers!())

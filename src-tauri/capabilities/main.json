@@ -60,6 +60,9 @@
     "allow-gmail-threads",
     "allow-gmail-thread",
     "allow-gmail-unread",
+    "allow-update-check",
+    "allow-update-install",
+    "allow-app-version",
     "allow-gmail-modify",
     "allow-gmail-send",
     "allow-gmail-save-attachment"
