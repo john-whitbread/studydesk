@@ -63,6 +63,8 @@ export interface State {
   compose: ComposeInit | null;
   mailCompose: MailComposeInit | null;
   gmail: { connected: boolean; email: string | null } | null;
+  /** Narrow windows: the sidebar rail is expanded over the page. */
+  sideOpen: boolean;
   mailUnread: number | null;
   progress: Record<string, UploadProgress>;
   drag: DragState | null;
@@ -90,6 +92,7 @@ const initial: State = {
   compose: null,
   mailCompose: null,
   gmail: null,
+  sideOpen: false,
   mailUnread: null,
   progress: {},
   drag: null,

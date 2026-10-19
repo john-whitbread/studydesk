@@ -15,19 +15,23 @@ export function CourseView({ courseId, assignmentId }: { courseId: number; assig
   const dash = useStore((s) => s.dash);
   const now = useNow(30_000);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const [wide, setWide] = useState(true);
-  const [pane, setPane] = useState<"details" | "files">("details");
+  /** three: list | detail | files. two: list | (detail or files). one: a single pane at a time. */
+  const [cols, setCols] = useState<1 | 2 | 3>(3);
+  const [pane, setPane] = useState<"list" | "details" | "files">(assignmentId != null ? "details" : "list");
 
   useLayoutEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setWide(e.contentRect.width >= 1420));
+    const ro = new ResizeObserver(([e]) => {
+      const w = e.contentRect.width;
+      setCols(w >= 1420 ? 3 : w >= 760 ? 2 : 1);
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, [dash != null]);
 
   useEffect(() => {
-    if (assignmentId != null) setPane("details");
+    setPane(assignmentId != null ? "details" : "list");
   }, [assignmentId]);
 
   useEffect(() => {
@@ -51,7 +55,10 @@ export function CourseView({ courseId, assignmentId }: { courseId: number; assig
   if (!dash) return null;
   if (!course) return <Empty title="Course not found">It may have ended or been hidden. Check Settings → Courses.</Empty>;
 
-  const select = (id: number) => navigate({ view: "course", courseId, assignmentId: id });
+  const select = (id: number) => {
+    navigate({ view: "course", courseId, assignmentId: id });
+    setPane("details"); // also when re-picking the already-selected one
+  };
   const close = () => navigate({ view: "course", courseId });
   const { score, grade } = currentScore(course);
 
@@ -90,7 +97,7 @@ export function CourseView({ courseId, assignmentId }: { courseId: number; assig
       <div className="content" style={{ overflow: "hidden" }}>
         <div className="course-body" ref={bodyRef}>
           {anns.length > 0 && <Announcements course={course} anns={anns} now={now} />}
-          {wide ? (
+          {cols === 3 ? (
             <div className="cols three">
               <div className="col">
                 <AssignmentList list={list} now={now} selectedId={assignmentId} onSelect={select} />
@@ -98,7 +105,7 @@ export function CourseView({ courseId, assignmentId }: { courseId: number; assig
               <div className="col">{detail ?? <SelectHint />}</div>
               <div className="col">{files}</div>
             </div>
-          ) : (
+          ) : cols === 2 ? (
             <div className="cols two">
               <div className="col">
                 <AssignmentList list={list} now={now} selectedId={assignmentId} onSelect={select} />
@@ -106,7 +113,7 @@ export function CourseView({ courseId, assignmentId }: { courseId: number; assig
               <div className="col" style={{ gap: 8 }}>
                 {selected && (
                   <div className="seg" style={{ alignSelf: "flex-start" }}>
-                    <button className={pane === "details" ? "active" : ""} onClick={() => setPane("details")}>
+                    <button className={pane !== "files" ? "active" : ""} onClick={() => setPane("details")}>
                       Details
                     </button>
                     <button className={pane === "files" ? "active" : ""} onClick={() => setPane("files")}>
@@ -114,7 +121,26 @@ export function CourseView({ courseId, assignmentId }: { courseId: number; assig
                     </button>
                   </div>
                 )}
-                {selected && pane === "details" ? detail : files}
+                {selected && pane !== "files" ? detail : files}
+              </div>
+            </div>
+          ) : (
+            <div className="cols one">
+              <div className="col" style={{ gap: 8 }}>
+                <div className="seg" style={{ alignSelf: "flex-start" }} role="tablist">
+                  <button className={pane === "list" ? "active" : ""} onClick={() => setPane("list")}>
+                    Assignments
+                  </button>
+                  {selected && (
+                    <button className={pane === "details" ? "active" : ""} onClick={() => setPane("details")} title={selected.name}>
+                      Details
+                    </button>
+                  )}
+                  <button className={pane === "files" ? "active" : ""} onClick={() => setPane("files")}>
+                    Files
+                  </button>
+                </div>
+                {pane === "files" ? files : pane === "details" && selected ? detail : <AssignmentList list={list} now={now} selectedId={assignmentId} onSelect={select} />}
               </div>
             </div>
           )}

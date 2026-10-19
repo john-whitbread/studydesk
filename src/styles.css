@@ -278,7 +278,8 @@ a:hover { text-decoration: underline; }
 .score span { font-size: 11.5px; color: var(--text-3); }
 .course-body { display: flex; flex-direction: column; gap: 12px; height: 100%; padding: 12px 16px 16px; min-height: 0; }
 .cols { display: grid; gap: 12px; flex: 1; min-height: 0; }
-.cols.two { grid-template-columns: minmax(340px, 0.95fr) minmax(400px, 1.05fr); }
+.cols.two { grid-template-columns: minmax(280px, 0.95fr) minmax(360px, 1.05fr); }
+.cols.one { grid-template-columns: minmax(0, 1fr); }
 .cols.three { grid-template-columns: minmax(330px, 0.9fr) minmax(400px, 1.15fr) minmax(330px, 0.9fr); }
 .col { display: flex; flex-direction: column; min-height: 0; }
 .col > .panel { display: flex; flex-direction: column; min-height: 0; flex: 1; }
@@ -587,3 +588,86 @@ a:hover { text-decoration: underline; }
 .when { font-variant-numeric: tabular-nums; line-height: 1.3; min-width: 0; }
 .when b { display: block; font-size: 13.5px; }
 .when > span { display: block; }
+
+/* ============================================================ responsive
+   Views respond to the width they actually get (container queries on
+   .main and each .panel), so a portrait monitor, Windows display scaling
+   and a narrow window all behave the same way. */
+
+.main { container: main / inline-size; }
+.panel { container: panel / inline-size; }
+.back-btn, .rail-toggle, .ci-rail, .side-scrim { display: none; }
+.topbar { flex-wrap: wrap; row-gap: 8px; }
+.topbar > div:first-child { min-width: 0; }
+
+@container main (max-width: 1100px) {
+  .today-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@container main (max-width: 960px) {
+  .inbox { grid-template-columns: 320px minmax(0, 1fr); }
+}
+@container main (max-width: 760px) {
+  .inbox { grid-template-columns: minmax(0, 1fr); }
+  .inbox.has-sel .inbox-list { display: none; }
+  .inbox:not(.has-sel) .thread { display: none; }
+  .inbox-list { border-right: 0; }
+  .back-btn { display: inline-grid; margin: -3px 0 0 -8px; }
+  .thread-head { padding: 10px 14px; }
+  .msg.mine { margin-left: 16px; }
+  .topbar { padding: 10px 14px; }
+  .content.pad { padding: 12px 12px 20px; }
+  .course-body { padding: 10px 12px 12px; }
+}
+
+/* Rows: on a narrow panel the status chip moves under the title instead of
+   taking a fixed-width column. */
+@container panel (max-width: 520px) {
+  .due-row, .asg-row, .pin-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "main due" "chip due";
+    row-gap: 4px;
+  }
+  .due-row > :nth-child(1), .asg-row > :nth-child(1), .pin-row > :nth-child(1) { grid-area: chip; justify-self: start; }
+  .due-row > :nth-child(2), .asg-row > :nth-child(2), .pin-row > :nth-child(2) { grid-area: main; }
+  .due-row > :nth-child(3), .asg-row > :nth-child(3), .pin-row > :nth-child(3) { grid-area: due; }
+  .finding { grid-template-columns: minmax(0, 1fr) auto; }
+  .finding > :first-child { grid-column: 1 / -1; }
+  .pin-edit { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .pin-edit > :last-child { grid-column: 1 / -1; }
+}
+@container panel (max-width: 600px) {
+  .set-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}
+
+/* Sidebar becomes a 60px rail below 900px; the toggle opens it over the page. */
+@media (max-width: 899px) {
+  .app { grid-template-columns: 60px minmax(0, 1fr); }
+  .main { grid-column: 2; grid-row: 1; }
+  .sidebar { grid-column: 1; grid-row: 1; min-width: 0; overflow: hidden; }
+  .rail-toggle { display: inline-grid; align-self: center; }
+  .app:not(.side-open) .side-top,
+  .app:not(.side-open) .side-scroll,
+  .app:not(.side-open) .side-foot { padding-left: 8px; padding-right: 8px; }
+  .app:not(.side-open) .brand,
+  .app:not(.side-open) .side-label,
+  .app:not(.side-open) .ci-text,
+  .app:not(.side-open) .sidebar .nl,
+  .app:not(.side-open) .jump .kbd { display: none; }
+  .app:not(.side-open) .jump { justify-content: center; padding: 0; }
+  .app:not(.side-open) .nav-item { position: relative; justify-content: center; padding: 0; }
+  .app:not(.side-open) .nav-item .count {
+    position: absolute; top: 0; right: 0; margin: 0; min-width: 16px; padding: 0 4px;
+    font-size: 10px; line-height: 16px; border-radius: 8px; text-align: center; background: var(--panel); box-shadow: 0 0 0 1px var(--border);
+  }
+  .app:not(.side-open) .nav-item .count.badge { background: var(--accent); box-shadow: none; }
+  .app:not(.side-open) .nav-item .count.hot { color: var(--danger); }
+  .app:not(.side-open) .course-item { flex-direction: column; align-items: center; gap: 3px; padding: 6px 0; min-height: 40px; }
+  .app:not(.side-open) .course-item .dot { margin-top: 0; }
+  .app:not(.side-open) .ci-rail { display: block; font-size: 10.5px; font-weight: 650; line-height: 1; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .app:not(.side-open) .course-item.active .ci-rail { color: var(--text); }
+  .app:not(.side-open) .sync-line { justify-content: center; }
+  .app.side-open .sidebar { position: fixed; z-index: 35; top: 0; bottom: 0; left: 0; width: min(280px, 86vw); box-shadow: var(--shadow-lg); }
+  .app.side-open .side-top { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .app.side-open .jump { flex-basis: 100%; }
+  .side-scrim { display: block; position: fixed; inset: 0; z-index: 34; background: rgba(0, 0, 0, 0.3); }
+}

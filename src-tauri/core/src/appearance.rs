@@ -52,4 +52,17 @@ mod tests {
         assert!(check_accent("teal").is_ok());
         assert!(check_accent("red\"").is_err());
     }
+
+    #[test]
+    fn older_vaults_get_defaults_and_colours_round_trip() {
+        use crate::vault::Prefs;
+        // Prefs saved by 0.2.0 have none of the appearance fields.
+        let old: Prefs = serde_json::from_str(r#"{"auto_lock_minutes":0,"notify":true}"#).unwrap();
+        assert_eq!((old.theme.as_str(), old.accent.as_str()), ("system", "blue"));
+        assert!(old.course_colors.is_empty());
+        let mut p = Prefs::default();
+        p.course_colors.insert(101, "#ff00aa".into());
+        let back: Prefs = serde_json::from_str(&serde_json::to_string(&p).unwrap()).unwrap();
+        assert_eq!(back.course_colors.get(&101).map(String::as_str), Some("#ff00aa"));
+    }
 }

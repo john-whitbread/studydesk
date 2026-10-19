@@ -112,3 +112,18 @@ test("file matching", () => {
   assert.equal(bestMatch(files, "Problem Set 6 – Torsion"), null);
   assert.equal(bestMatch([{ name: "PS6_torsion.pdf", modifiedMs: 1 }], "Problem Set 6 – Torsion of non-circular shafts")?.name, "PS6_torsion.pdf");
 });
+
+import { railLabels } from "./util.ts";
+
+test("rail labels are short and unique", () => {
+  const l = railLabels([
+    { id: 1, course_code: "MECE 2420U", name: "Solid Mechanics II" },
+    { id: 2, course_code: "MECE 2860U", name: "Fluid Mechanics" },
+    { id: 3, course_code: "MATH 2860U", name: "Differential Equations" },
+    { id: 4, course_code: "", name: "Career Seminar" },
+  ]);
+  assert.equal(l.get(1), "2420");
+  assert.equal(l.get(2), "ME2860");
+  assert.equal(l.get(3), "MA2860");
+  assert.equal(l.get(4), "CS");
+});

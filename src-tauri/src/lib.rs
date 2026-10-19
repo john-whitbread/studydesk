@@ -80,6 +80,9 @@ macro_rules! handlers {
             cmd_update::update_check,
             cmd_update::update_install,
             cmd_update::app_version,
+            cmd_session::get_appearance,
+            cmd_session::set_appearance,
+            cmd_session::set_course_color,
             cmd_gmail::gmail_modify,
             cmd_gmail::gmail_send,
             cmd_gmail::gmail_save_attachment,
@@ -176,7 +179,7 @@ fn build_window(app: &AppHandle, start_hidden: bool) -> tauri::Result<()> {
         .title("Studydesk")
         .visible(!start_hidden)
         .inner_size(1360.0, 860.0)
-        .min_inner_size(980.0, 620.0)
+        .min_inner_size(560.0, 480.0)
         .center()
         .on_navigation(allowed_navigation)
         .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)

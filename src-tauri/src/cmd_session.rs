@@ -371,3 +371,67 @@ pub async fn autostart_set(app: AppHandle, enabled: bool) -> Result<()> {
     let r = if enabled { app.autolaunch().enable() } else { app.autolaunch().disable() };
     r.map_err(|e| CoreError::Io(format!("Couldn't change the startup setting: {e}")))
 }
+
+// ------------------------------------------------------------ appearance
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Appearance {
+    theme: String,
+    accent: String,
+    /// course id -> `#rrggbb`
+    course_colors: std::collections::BTreeMap<String, String>,
+}
+
+fn appearance_of(p: &studydesk_core::vault::Prefs) -> Appearance {
+    use studydesk_core::appearance::{check_accent, check_theme};
+    Appearance {
+        // Anything unexpected in an older vault falls back to the defaults.
+        theme: check_theme(&p.theme).unwrap_or("system").to_string(),
+        accent: check_accent(&p.accent).unwrap_or("blue").to_string(),
+        course_colors: p.course_colors.iter().map(|(k, v)| (k.to_string(), v.clone())).collect(),
+    }
+}
+
+#[tauri::command]
+pub async fn get_appearance(state: State<'_, AppState>) -> Result<Appearance> {
+    let g = state.session.read().await;
+    let s = g.as_ref().ok_or(CoreError::Locked)?;
+    Ok(appearance_of(&s.data.prefs))
+}
+
+#[tauri::command]
+pub async fn set_appearance(state: State<'_, AppState>, theme: Option<String>, accent: Option<String>) -> Result<Appearance> {
+    use studydesk_core::appearance::{check_accent, check_theme};
+    let mut g = state.session.write().await;
+    let s = g.as_mut().ok_or(CoreError::Locked)?;
+    if let Some(t) = theme {
+        s.data.prefs.theme = check_theme(&t)?.to_string();
+    }
+    if let Some(a) = accent {
+        s.data.prefs.accent = check_accent(&a)?.to_string();
+    }
+    state.persist(s)?;
+    Ok(appearance_of(&s.data.prefs))
+}
+
+/// `color: None` removes your colour, so the course uses its Canvas colour again.
+#[tauri::command]
+pub async fn set_course_color(state: State<'_, AppState>, course_id: u64, color: Option<String>) -> Result<Appearance> {
+    let mut g = state.session.write().await;
+    let s = g.as_mut().ok_or(CoreError::Locked)?;
+    match color {
+        Some(c) => {
+            let c = studydesk_core::appearance::normalize_hex(&c)?;
+            if s.data.prefs.course_colors.len() >= 200 && !s.data.prefs.course_colors.contains_key(&course_id) {
+                return Err(CoreError::Invalid("Too many course colours saved.".into()));
+            }
+            s.data.prefs.course_colors.insert(course_id, c);
+        }
+        None => {
+            s.data.prefs.course_colors.remove(&course_id);
+        }
+    }
+    state.persist(s)?;
+    Ok(appearance_of(&s.data.prefs))
+}

@@ -1,4 +1,4 @@
-import { Archive, ExternalLink, Inbox as InboxIcon, MailOpen, Paperclip, PenLine, RefreshCw, Search, Send, Star } from "lucide-react";
+import { Archive, ArrowLeft, ExternalLink, Inbox as InboxIcon, MailOpen, Paperclip, PenLine, RefreshCw, Search, Send, Star } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api.ts";
 import { registerDrop } from "../lib/drag.ts";
@@ -173,7 +173,7 @@ export function Mail({ threadId }: { threadId?: string }) {
         </div>
       </header>
       <div className="content" style={{ overflow: "hidden" }}>
-        <div className="inbox">
+        <div className={`inbox${threadId ? " has-sel" : ""}`}>
           <div className="inbox-list">
             <div className="toolbar">
               <div className="seg">
@@ -350,6 +350,9 @@ function MailThread({
   return (
     <div className="thread">
       <div className="thread-head">
+        <button className="icon-btn back-btn" onClick={() => navigate({ view: "mail" })} title="Back to email" aria-label="Back to email">
+          <ArrowLeft size={16} />
+        </button>
         <div style={{ minWidth: 0, flex: 1 }}>
           <h2 className="selectable">{t.subject || "(no subject)"}</h2>
           <div className="small muted">{t.messages.length === 1 ? "1 message" : `${t.messages.length} messages`}</div>

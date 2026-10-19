@@ -71,3 +71,19 @@ export async function copyText(text: string): Promise<boolean> {
     return ok;
   }
 }
+
+/** Short labels for the narrow rail: the course number ("2420"); when two
+ *  courses share a number, the first two letters of the code are added
+ *  ("ME2860", "MA2860"); with no number, initials. */
+export function railLabels(courses: { id: number; course_code: string; name: string }[]): Map<number, string> {
+  const base = courses.map((c) => {
+    const src = c.course_code || c.name;
+    const num = src.match(/\d{3,4}/)?.[0];
+    const letters = src.replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase();
+    const words = src.trim().split(/\s+/);
+    return { id: c.id, num, letters, initials: ((words[0]?.[0] ?? "") + (words[1]?.[0] ?? "")).toUpperCase() };
+  });
+  const seen = new Map<string, number>();
+  base.forEach((b) => b.num && seen.set(b.num, (seen.get(b.num) ?? 0) + 1));
+  return new Map(base.map((b) => [b.id, b.num ? ((seen.get(b.num) ?? 0) > 1 ? b.letters + b.num : b.num) : b.initials]));
+}

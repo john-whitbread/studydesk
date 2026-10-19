@@ -1,4 +1,4 @@
-import { Archive, MailOpen, Paperclip, PenLine, RefreshCw, Search, Send, Star, X } from "lucide-react";
+import { Archive, ArrowLeft, MailOpen, Paperclip, PenLine, RefreshCw, Search, Send, Star, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api.ts";
 import { registerDrop } from "../lib/drag.ts";
@@ -158,7 +158,7 @@ export function Inbox({ conversationId }: { conversationId?: number }) {
         </div>
       </header>
       <div className="content" style={{ overflow: "hidden" }}>
-        <div className="inbox">
+        <div className={`inbox${conversationId != null ? " has-sel" : ""}`}>
           <div className="inbox-list">
             <div className="toolbar">
               <div className="seg">
@@ -317,6 +317,9 @@ function Thread({
   return (
     <div className="thread">
       <div className="thread-head">
+        <button className="icon-btn back-btn" onClick={() => navigate({ view: "inbox" })} title="Back to messages" aria-label="Back to messages">
+          <ArrowLeft size={16} />
+        </button>
         <div style={{ minWidth: 0, flex: 1 }}>
           <h2 className="selectable">{c.subject || "(no subject)"}</h2>
           <div className="small muted">

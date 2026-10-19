@@ -15,7 +15,7 @@ import { Today } from "./components/Today.tsx";
 import { Spinner } from "./components/common.tsx";
 import { registerDrop } from "./lib/drag.ts";
 import { acceptsUpload } from "./lib/status.ts";
-import { addToDraft, dismissToast, getState, navigate, toast, useStore } from "./lib/store.ts";
+import { addToDraft, dismissToast, getState, navigate, setState, toast, useStore } from "./lib/store.ts";
 import { plural } from "./lib/util.ts";
 
 export function App() {
@@ -36,6 +36,7 @@ function Shell() {
   const palette = useStore((s) => s.paletteOpen);
   const compose = useStore((s) => s.compose);
   const mailCompose = useStore((s) => s.mailCompose);
+  const sideOpen = useStore((s) => s.sideOpen);
 
   // Dropping files on an assignment (row or submit box) stages them for it.
   useEffect(() => {
@@ -53,8 +54,9 @@ function Shell() {
   }, []);
 
   return (
-    <div className="app">
+    <div className={`app${sideOpen ? " side-open" : ""}`}>
       <Sidebar />
+      {sideOpen && <div className="side-scrim" onClick={() => setState({ sideOpen: false })} />}
       <main className="main">
         {route.view === "today" && <Today />}
         {route.view === "course" && <CourseView courseId={route.courseId} assignmentId={route.assignmentId} />}
