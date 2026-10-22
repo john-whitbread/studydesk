@@ -166,6 +166,32 @@ fn empty_ok(e: CoreError) -> Result<serde_json::Value> {
 }
 
 impl Canvas {
+    /// Assignment groups with weights and drop rules (for the grade calculator).
+    pub async fn assignment_groups(&self, course_id: u64) -> Result<Vec<AssignmentGroup>> {
+        self.get_all(&format!("/api/v1/courses/{course_id}/assignment_groups"), &[q("per_page", "100")]).await
+    }
+
+    /// Modules with their items and your completion state.
+    pub async fn modules(&self, course_id: u64) -> Result<Vec<Module>> {
+        self.get_all(
+            &format!("/api/v1/courses/{course_id}/modules"),
+            &[q("include[]", "items"), q("include[]", "content_details"), q("per_page", "50")],
+        )
+        .await
+    }
+
+    /// Marks a module item done (must_mark_done) or viewed (must_view).
+    pub async fn module_item_complete(&self, course_id: u64, module_id: u64, item_id: u64, view: bool) -> Result<()> {
+        let path = if view {
+            format!("/api/v1/courses/{course_id}/modules/{module_id}/items/{item_id}/mark_read")
+        } else {
+            format!("/api/v1/courses/{course_id}/modules/{module_id}/items/{item_id}/done")
+        };
+        let method = if view { Method::POST } else { Method::PUT };
+        let _: serde_json::Value = self.send_form(method, &path, &[]).await.or_else(empty_ok)?;
+        Ok(())
+    }
+
     /// Instructor-posted calendar events (exams, labs, sessions) in a date range.
     pub async fn calendar_events(&self, course_id: u64, start: &str, end: &str) -> Result<Vec<CalendarEvent>> {
         self.get_all(

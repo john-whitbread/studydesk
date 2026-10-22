@@ -13,6 +13,7 @@ use studydesk_core::canvas::models::{Assignment, Course, CourseFile};
 use studydesk_core::canvas::Canvas;
 use studydesk_core::dates::{self, Confidence, Context, Finding, Source};
 use studydesk_core::textract::{self, MAX_FILE_BYTES};
+use studydesk_core::office_hours::{self, OfficeHours};
 use studydesk_core::vault::PinnedDate;
 use studydesk_core::{paths, CoreError, Result};
 use tauri::{AppHandle, Emitter, State};
@@ -55,6 +56,8 @@ pub struct Scanned {
 pub struct ScanResult {
     findings: Vec<Finding>,
     scanned: Vec<Scanned>,
+    /// Office hours found, not yet confirmed or dismissed.
+    office_hours: Vec<OfficeHours>,
 }
 
 #[derive(Serialize, Clone)]
@@ -81,6 +84,7 @@ fn ctx_for(c: &Course) -> Context {
 struct CourseScan {
     findings: Vec<Finding>,
     scanned: Vec<Scanned>,
+    office_hours: Vec<OfficeHours>,
 }
 
 fn note(e: &CoreError) -> String {
@@ -94,6 +98,7 @@ async fn scan_course(canvas: Arc<Canvas>, c: Course, local_root: Option<std::pat
     let ctx = ctx_for(&c);
     let mut findings = Vec::new();
     let mut scanned = Vec::new();
+    let mut hours: Vec<OfficeHours> = Vec::new();
     let mut record = |kind: &str, name: &str, r: std::result::Result<usize, String>| {
         scanned.push(Scanned {
             course_id: c.id,
@@ -147,6 +152,7 @@ async fn scan_course(canvas: Arc<Canvas>, c: Course, local_root: Option<std::pat
     match canvas.syllabus(c.id).await {
         Ok(Some(html)) => {
             let src = Source { kind: "syllabus".into(), name: "Syllabus".into(), url: Some(format!("{}courses/{}/assignments/syllabus", canvas.base_str(), c.id)) };
+            hours.extend(office_hours::extract(&html, c.id, &src));
             let f = dates::extract(&dates::html_to_text(&html), c.id, &src, &ctx);
             record("syllabus", "Syllabus", Ok(f.len()));
             findings.extend(f);
@@ -160,6 +166,7 @@ async fn scan_course(canvas: Arc<Canvas>, c: Course, local_root: Option<std::pat
         Ok(Some(p)) => {
             let name = p.title.clone().unwrap_or_else(|| "Home page".into());
             let src = Source { kind: "page".into(), name: name.clone(), url: p.html_url.clone() };
+            hours.extend(office_hours::extract(p.body.as_deref().unwrap_or(""), c.id, &src));
             let f = dates::extract(&dates::html_to_text(p.body.as_deref().unwrap_or("")), c.id, &src, &ctx);
             record("page", &name, Ok(f.len()));
             findings.extend(f);
@@ -188,6 +195,7 @@ async fn scan_course(canvas: Arc<Canvas>, c: Course, local_root: Option<std::pat
                 match r {
                     Ok(text) => {
                         let src = Source { kind: "file".into(), name: f.display_name.clone(), url: Some(format!("{}courses/{}/files/{}", canvas.base_str(), c.id, f.id)) };
+                        hours.extend(office_hours::extract(&text, c.id, &src));
                         let found = dates::extract(&text, c.id, &src, &ctx);
                         record("file", &f.display_name, Ok(found.len()));
                         findings.extend(found);
@@ -218,6 +226,7 @@ async fn scan_course(canvas: Arc<Canvas>, c: Course, local_root: Option<std::pat
                 match r {
                     Ok(text) => {
                         let src = Source { kind: "local".into(), name: e.rel.clone(), url: None };
+                        hours.extend(office_hours::extract(&text, c.id, &src));
                         let found = dates::extract(&text, c.id, &src, &ctx);
                         record("local", &e.rel, Ok(found.len()));
                         findings.extend(found);
@@ -227,7 +236,26 @@ async fn scan_course(canvas: Arc<Canvas>, c: Course, local_root: Option<std::pat
             }
         }
     }
-    CourseScan { findings, scanned }
+    // 6. Announcements this term: "Quiz 2 is this Thursday", office-hour changes.
+    let from = ctx.term_start.map(|d| d - chrono::Duration::days(7)).unwrap_or(ctx.today - chrono::Duration::days(120));
+    let to = ctx.today + chrono::Duration::days(1);
+    match canvas.announcements(&[c.id], &from.format("%Y-%m-%d").to_string(), &to.format("%Y-%m-%d").to_string()).await {
+        Ok(list) => {
+            let mut n = 0;
+            for an in &list {
+                let Some(posted) = local_date(&an.posted_at) else { continue };
+                let src = Source { kind: "announcement".into(), name: an.title.clone(), url: an.html_url.clone() };
+                let body = an.message.as_deref().unwrap_or("");
+                hours.extend(office_hours::extract(body, c.id, &src));
+                let f = studydesk_core::announce::extract(&an.title, body, posted, c.id, &src, &ctx);
+                n += f.len();
+                findings.extend(f);
+            }
+            record("announcement", &format!("Announcements ({})", list.len()), Ok(n));
+        }
+        Err(e) => record("announcement", "Announcements", Err(note(&e))),
+    }
+    CourseScan { findings, scanned, office_hours: hours }
 }
 
 /// Scans all visible courses (or the given ones).
@@ -259,12 +287,14 @@ pub async fn dates_scan(app: AppHandle, state: State<'_, AppState>, course_ids: 
     let mut done = 0;
     let mut all = Vec::new();
     let mut scanned = Vec::new();
+    let mut hours: Vec<OfficeHours> = Vec::new();
     let mut s = stream::iter(futures).buffer_unordered(3);
     while let Some((label, r)) = s.next().await {
         done += 1;
         let _ = app.emit("scan-progress", Progress { done, total, course: label });
         all.extend(r.findings);
         scanned.extend(r.scanned);
+        hours.extend(r.office_hours);
     }
 
     let mut findings = dates::merge(all);
@@ -284,7 +314,19 @@ pub async fn dates_scan(app: AppHandle, state: State<'_, AppState>, course_ids: 
             }
         }
     }
-    Ok(ScanResult { findings, scanned })
+    // Office hours: one suggestion per course/days/time, minus ones you've handled.
+    let (confirmed, dismissed_now) = {
+        let g = state.session.read().await;
+        let s = g.as_ref().ok_or(CoreError::Locked)?;
+        (s.data.prefs.office_hours.iter().map(|o| o.id.clone()).collect::<Vec<_>>(), s.data.prefs.dismissed.clone())
+    };
+    let mut office_hours: Vec<OfficeHours> = Vec::new();
+    for o in hours {
+        if !confirmed.contains(&o.id) && !dismissed_now.contains(&format!("oh:{}", o.id)) && !office_hours.iter().any(|x| x.id == o.id) {
+            office_hours.push(o);
+        }
+    }
+    Ok(ScanResult { findings, scanned, office_hours })
 }
 
 #[tauri::command]
@@ -335,6 +377,10 @@ pub async fn dates_pin(app: tauri::AppHandle, state: State<'_, AppState>, item: 
 pub async fn dates_unpin(app: tauri::AppHandle, state: State<'_, AppState>, id: String) -> Result<Vec<PinnedDate>> {
     let mut g = state.session.write().await;
     let s = g.as_mut().ok_or(CoreError::Locked)?;
+    // A date added from an announcement and removed by you stays removed.
+    if s.data.prefs.pinned.iter().any(|p| p.id == id && p.auto) && s.data.prefs.dismissed.len() < 3000 {
+        s.data.prefs.dismissed.insert(id.clone());
+    }
     s.data.prefs.pinned.retain(|p| p.id != id);
     state.persist(s)?;
     let out = s.data.prefs.pinned.clone();
@@ -363,7 +409,7 @@ pub async fn dates_restore_dismissed(state: State<'_, AppState>) -> Result<()> {
 }
 
 /// Pinned dates as reminder items (due at the stated time, or 9:00 if none).
-pub fn pinned_items(pins: &[PinnedDate], labels: &std::collections::HashMap<u64, String>) -> Vec<studydesk_core::reminders::Item> {
+pub fn pinned_items(pins: &[PinnedDate], labels: &std::collections::HashMap<u64, String>, estimates: &std::collections::BTreeMap<String, f64>) -> Vec<studydesk_core::reminders::Item> {
     pins.iter()
         .filter(|p| p.kind != "info")
         .filter_map(|p| {
@@ -375,6 +421,8 @@ pub fn pinned_items(pins: &[PinnedDate], labels: &std::collections::HashMap<u64,
                 name: p.label.clone(),
                 course: labels.get(&p.course_id).cloned().unwrap_or_default(),
                 due: local.with_timezone(&chrono::Utc),
+                // Exams need studying: they get a "start soon" nudge like big assignments.
+                hours: (p.kind == "exam").then(|| studydesk_core::effort::default_hours("exam", estimates)),
             })
         })
         .collect()
@@ -482,4 +530,73 @@ mod tests {
         let mut bad = PinnedDate { date: "2026-10-28".into(), label: "x".into(), kind: "party".into(), ..Default::default() };
         assert!(validate(&mut bad).is_err());
     }
+}
+
+// ------------------------------------------------------------ announcements
+
+/// Dates found in announcements: quizzes, exams and due dates are pinned
+/// automatically (unless Canvas already lists them as assignments or you
+/// removed them before); a "moved" announcement updates the pin it moved.
+/// Returns what was added or changed, for the "added from announcement" notice.
+pub fn auto_pin(s: &mut crate::state::Session, courses: &[Course], announcements: &[studydesk_core::canvas::models::Announcement]) -> Vec<PinnedDate> {
+    if !s.data.prefs.auto_dates {
+        return vec![];
+    }
+    let today = Local::now().date_naive();
+    let mut touched = Vec::new();
+    for an in announcements {
+        let Some(cid) = an.context_code.as_deref().and_then(|c| c.strip_prefix("course_")).and_then(|c| c.parse::<u64>().ok()) else { continue };
+        let Some(course) = courses.iter().find(|c| c.id == cid) else { continue };
+        let Some(posted) = local_date(&an.posted_at) else { continue };
+        let src = Source { kind: "announcement".into(), name: an.title.clone(), url: an.html_url.clone() };
+        let found = studydesk_core::announce::extract(&an.title, an.message.as_deref().unwrap_or(""), posted, cid, &src, &ctx_for(course));
+        let moved = studydesk_core::announce::mentions_move(&an.title, an.message.as_deref().unwrap_or(""));
+        for f in found {
+            if touched.len() >= 10 || f.kind == dates::Kind::Info || f.confidence < Confidence::Medium {
+                continue;
+            }
+            let Ok(d) = NaiveDate::parse_from_str(&f.date, "%Y-%m-%d") else { continue };
+            if d < today || s.data.prefs.dismissed.contains(&f.id) || s.data.prefs.pinned.iter().any(|p| p.id == f.id) {
+                continue;
+            }
+            let kind = format!("{:?}", f.kind).to_lowercase();
+            // Already a Canvas assignment that day? Then it's on your list already.
+            let in_canvas = s.upcoming.iter().map(|(_, a)| a).filter(|a| a.course_id == cid && local_date(&a.due_at) == Some(d)).any(|a| f.kind == dates::Kind::Deliverable || dates::same_item(&f.label, f.kind, &a.name));
+            if in_canvas {
+                continue;
+            }
+            // Same day, same kind already pinned (by you or the scanner).
+            if s.data.prefs.pinned.iter().any(|p| p.course_id == cid && p.date == f.date && p.kind == kind) {
+                continue;
+            }
+            // "Quiz 2 moved to Friday": move the pin rather than adding a second one.
+            if moved {
+                if let Some(p) = s.data.prefs.pinned.iter_mut().find(|p| p.auto && p.course_id == cid && p.kind == kind && p.date != f.date && dates::same_item(&p.label, f.kind, &f.label)) {
+                    p.date = f.date.clone();
+                    p.time = f.time.clone().or(p.time.take());
+                    p.source = format!("Announcement: {} (moved)", an.title);
+                    touched.push(p.clone());
+                    continue;
+                }
+            }
+            let pin = PinnedDate {
+                id: f.id.clone(),
+                course_id: cid,
+                date: f.date.clone(),
+                time: f.time.clone(),
+                label: f.label.chars().take(120).collect(),
+                kind,
+                weight: f.weight.clone(),
+                source: format!("Announcement: {}", an.title.chars().take(100).collect::<String>()),
+                auto: true,
+                url: an.html_url.clone(),
+            };
+            s.data.prefs.pinned.push(pin.clone());
+            touched.push(pin);
+        }
+    }
+    if !touched.is_empty() {
+        s.data.prefs.pinned.sort_by(|a, b| (a.date.as_str(), a.time.as_deref()).cmp(&(b.date.as_str(), b.time.as_deref())));
+    }
+    touched
 }

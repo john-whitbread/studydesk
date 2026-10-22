@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-grade-groups"
+description = "Enables the grade_groups command without any pre-configured scope."
+commands.allow = ["grade_groups"]
+
+[[permission]]
+identifier = "deny-grade-groups"
+description = "Denies the grade_groups command without any pre-configured scope."
+commands.deny = ["grade_groups"]

@@ -1,5 +1,6 @@
 //! Deadline reminders: one Windows notification 24 h before and one 2 h
-//! before anything you still need to submit. Keys are remembered (in the
+//! before anything you still need to submit, plus a "start soon" reminder for
+//! big pieces of work (4 h or more), sent further ahead the bigger they are. Keys are remembered (in the
 //! vault) so a reminder is never shown twice, even across restarts. A changed
 //! due date produces a new key, so extensions get fresh reminders.
 
@@ -56,6 +57,16 @@ pub struct Item {
     pub name: String,
     pub course: String,
     pub due: DateTime<Utc>,
+    /// Estimated hours of work, when known.
+    pub hours: Option<f64>,
+}
+
+/// When to send the "start soon" reminder for `hours` of work, or None for
+/// small tasks: 10 h of lead per hour of work, at least 2 days, at most 7.
+pub fn start_lead(hours: Option<f64>) -> Option<Duration> {
+    let h = hours.filter(|h| *h >= 4.0)?;
+    let lead_h = (h * 10.0).clamp(48.0, 168.0);
+    Some(Duration::minutes((lead_h * 60.0) as i64))
 }
 
 /// `items` = (course label, assignment). Keeps only those still needing action.
@@ -69,6 +80,7 @@ pub fn from_assignments(items: &[(String, Assignment)], now: DateTime<Utc>) -> V
                 name: a.name.clone(),
                 course: course.clone(),
                 due: parse_time(&a.due_at)?,
+                hours: None,
             })
         })
         .collect()
@@ -78,12 +90,29 @@ pub fn due(items: &[(String, Assignment)], now: DateTime<Utc>, already: &BTreeSe
     due_items(&from_assignments(items, now), now, already)
 }
 
+/// `quiet`: it's night; only urgent (24 h / 2 h) reminders go out.
 pub fn due_items(items: &[Item], now: DateTime<Utc>, already: &BTreeSet<String>) -> Vec<Reminder> {
+    due_items_q(items, now, already, false)
+}
+
+pub fn due_items_q(items: &[Item], now: DateTime<Utc>, already: &BTreeSet<String>, quiet: bool) -> Vec<Reminder> {
     let mut out = Vec::new();
     for it in items {
         let (due, course, base) = (it.due, &it.course, &it.key_base);
         if due <= now {
             continue;
+        }
+        // Big work: one early nudge, before the 24 h one and only while it's still useful.
+        if let Some(lead) = start_lead(it.hours) {
+            let key = format!("{base}:start");
+            if !quiet && due - now <= lead && due - now > Duration::hours(30) && !already.contains(&key) {
+                out.push(Reminder {
+                    keys: vec![key],
+                    title: format!("Start soon: {} (about {} of work)", it.name, fmt_hours(it.hours.unwrap_or(0.0))),
+                    body: format!("{course} · due {}", fmt_local(due)),
+                });
+                continue;
+            }
         }
         // Leads that have been reached, e.g. both 24h and 2h when first seen at 1 h out.
         let reached: Vec<&str> = LEADS.iter().filter(|(mins, _)| due - now <= Duration::minutes(*mins)).map(|(_, l)| *l).collect();
@@ -98,6 +127,10 @@ pub fn due_items(items: &[Item], now: DateTime<Utc>, already: &BTreeSet<String>)
         });
     }
     out
+}
+
+fn fmt_hours(h: f64) -> String {
+    if (h - h.round()).abs() < 0.05 { format!("{} h", h.round()) } else { format!("{h:.1} h") }
 }
 
 /// Drops keys for deadlines more than two days past, so the set stays small.
@@ -124,6 +157,22 @@ mod tests {
     }
     fn a(due: &str) -> Assignment {
         Assignment { id: 5, course_id: 9, name: "Lab 3".into(), due_at: Some(due.into()), submission_types: vec!["online_upload".into()], ..Default::default() }
+    }
+
+    #[test]
+    fn start_soon_for_big_work_only_and_not_at_night() {
+        let it = |h: Option<f64>, hours_out: i64| Item { key_base: "9:5:x".into(), name: "Design report".into(), course: "MECE".into(), due: now() + Duration::hours(hours_out), hours: h };
+        assert_eq!(start_lead(Some(2.0)), None);
+        assert_eq!(start_lead(Some(4.0)), Some(Duration::hours(48)));
+        assert_eq!(start_lead(Some(10.0)), Some(Duration::hours(100)));
+        assert_eq!(start_lead(Some(40.0)), Some(Duration::hours(168)));
+        let none = BTreeSet::new();
+        let r = due_items(&[it(Some(10.0), 90)], now(), &none);
+        assert_eq!(r.len(), 1);
+        assert!(r[0].title.starts_with("Start soon: Design report (about 10 h"), "{}", r[0].title);
+        assert!(due_items(&[it(Some(10.0), 120)], now(), &none).is_empty(), "too early");
+        assert!(due_items_q(&[it(Some(10.0), 90)], now(), &none, true).is_empty(), "quiet at night");
+        assert!(due_items(&[it(Some(2.0), 40)], now(), &none).is_empty(), "small work: only 24 h / 2 h");
     }
 
     #[test]

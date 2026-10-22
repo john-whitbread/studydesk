@@ -69,23 +69,23 @@ pub struct Context {
     pub term_end: Option<NaiveDate>,
 }
 
-struct Res {
-    month_first: Regex,
-    day_first: Regex,
-    iso: Regex,
-    numeric: Regex,
-    week: Regex,
-    time: Regex,
-    time24: Regex,
-    weight: Regex,
-    numeric_cue: Regex,
-    kinds: Vec<(Kind, Regex)>,
-    noise: Regex,
+pub(crate) struct Res {
+    pub(crate) month_first: Regex,
+    pub(crate) day_first: Regex,
+    pub(crate) iso: Regex,
+    pub(crate) numeric: Regex,
+    pub(crate) week: Regex,
+    pub(crate) time: Regex,
+    pub(crate) time24: Regex,
+    pub(crate) weight: Regex,
+    pub(crate) numeric_cue: Regex,
+    pub(crate) kinds: Vec<(Kind, Regex)>,
+    pub(crate) noise: Regex,
 }
 
 const MONTHS: &str = r"(?P<mon>jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
 
-fn res() -> &'static Res {
+pub(crate) fn res() -> &'static Res {
     static R: OnceLock<Res> = OnceLock::new();
     R.get_or_init(|| Res {
         month_first: Regex::new(&format!(r"(?i)\b{MONTHS}\.?\s+(?P<day>[0-3]?\d)(?:st|nd|rd|th)?\b(?:,?\s+(?P<year>20\d\d))?")).unwrap(),
@@ -130,7 +130,7 @@ fn infer_year(month: u32, day: u32, ctx: &Context) -> Option<NaiveDate> {
     cands.into_iter().filter(|d| *d >= ctx.today - Duration::days(60) && *d <= ctx.today + Duration::days(300)).min_by_key(|d| (*d - ctx.today).num_days().abs())
 }
 
-fn parse_time(s: &str) -> Option<String> {
+pub(crate) fn parse_time(s: &str) -> Option<String> {
     let r = res();
     if let Some(c) = r.time.captures(s) {
         if let Some(w) = c.name("word") {
@@ -150,15 +150,15 @@ fn parse_time(s: &str) -> Option<String> {
     r.time24.captures(s).map(|c| format!("{:02}:{}", c["h"].parse::<u32>().unwrap_or(0), &c["m"]))
 }
 
-struct Hit {
-    date: NaiveDate,
-    start: usize,
-    end: usize,
-    caution: Option<String>,
-    explicit_year: bool,
+pub(crate) struct Hit {
+    pub date: NaiveDate,
+    pub start: usize,
+    pub end: usize,
+    pub caution: Option<String>,
+    pub explicit_year: bool,
 }
 
-fn dates_in(line: &str, ctx: &Context) -> Vec<Hit> {
+pub(crate) fn dates_in(line: &str, ctx: &Context) -> Vec<Hit> {
     let r = res();
     let mut hits: Vec<Hit> = Vec::new();
     let mut taken: Vec<(usize, usize)> = Vec::new();
@@ -230,7 +230,7 @@ pub fn classify(line: &str) -> Option<(Kind, String)> {
     res().kinds.iter().find_map(|(k, re)| re.find(line).map(|m| (*k, m.as_str().to_string())))
 }
 
-fn clean_label(line: &str, remove: &[(usize, usize)], kind: Kind, keyword: &str) -> String {
+pub(crate) fn clean_label(line: &str, remove: &[(usize, usize)], kind: Kind, keyword: &str) -> String {
     let mut s = String::with_capacity(line.len());
     let mut i = 0;
     let mut cuts: Vec<(usize, usize)> = remove.to_vec();
@@ -286,7 +286,7 @@ pub fn week_range(term_start: NaiveDate, n: u32) -> Option<(NaiveDate, NaiveDate
 
 /// Splits text into candidate lines: real line breaks, plus sentence breaks
 /// inside very long lines (PDF paragraphs).
-fn lines(text: &str) -> Vec<String> {
+pub(crate) fn lines(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     for raw in text.lines() {
         let l = raw.trim();

@@ -119,7 +119,7 @@ mod tests {
             ("MECE 2420U".to_string(), asg(4, 101, "Long ago", Some("2026-01-01T00:00:00Z"), false)),
             ("ENGR 2310U".to_string(), asg(5, 105, "Hidden course", Some("2026-10-20T00:00:00Z"), false)),
         ];
-        let pins = vec![PinnedDate { id: "p1".into(), course_id: 101, date: "2026-10-28".into(), time: Some("10:00".into()), label: "Midterm".into(), kind: "exam".into(), weight: Some("25%".into()), source: "Course outline.pdf".into() }];
+        let pins = vec![PinnedDate { id: "p1".into(), course_id: 101, date: "2026-10-28".into(), time: Some("10:00".into()), label: "Midterm".into(), kind: "exam".into(), weight: Some("25%".into()), source: "Course outline.pdf".into(), ..Default::default() }];
         let codes = HashMap::from([(101, "MECE 2420U".to_string())]);
         let hidden = BTreeSet::from([105]);
         let ev = desired(&items, &pins, &codes, &hidden, now);

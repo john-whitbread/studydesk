@@ -66,6 +66,73 @@ pub struct Course {
     pub hide_final_grades: Option<bool>,
     pub start_at: Option<String>,
     pub end_at: Option<String>,
+    /// Assignment-group weights decide the grade (else total points).
+    pub apply_assignment_group_weights: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(default)]
+pub struct GroupRules {
+    pub drop_lowest: Option<u32>,
+    pub drop_highest: Option<u32>,
+    pub never_drop: Vec<u64>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(default)]
+pub struct AssignmentGroup {
+    pub id: u64,
+    pub name: String,
+    pub position: Option<i64>,
+    /// Percent of the final grade when the course uses weights.
+    pub group_weight: Option<f64>,
+    pub rules: Option<GroupRules>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(default)]
+pub struct CompletionRequirement {
+    /// must_view | must_mark_done | must_submit | must_contribute | min_score
+    #[serde(rename = "type")]
+    pub kind: Option<String>,
+    pub completed: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(default)]
+pub struct ContentDetails {
+    pub due_at: Option<String>,
+    pub points_possible: Option<f64>,
+    pub locked_for_user: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(default)]
+pub struct ModuleItem {
+    pub id: u64,
+    pub module_id: u64,
+    pub position: Option<i64>,
+    pub title: String,
+    /// File | Page | Discussion | Assignment | Quiz | SubHeader | ExternalUrl | ExternalTool
+    #[serde(rename = "type")]
+    pub kind: String,
+    pub content_id: Option<u64>,
+    pub html_url: Option<String>,
+    pub indent: Option<i64>,
+    pub completion_requirement: Option<CompletionRequirement>,
+    pub content_details: Option<ContentDetails>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(default)]
+pub struct Module {
+    pub id: u64,
+    pub name: String,
+    pub position: Option<i64>,
+    pub unlock_at: Option<String>,
+    /// locked | unlocked | started | completed
+    pub state: Option<String>,
+    pub items: Vec<ModuleItem>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -159,6 +226,7 @@ pub struct Assignment {
     pub rubric: Vec<RubricCriterion>,
     pub submission: Option<Submission>,
     pub omit_from_final_grade: Option<bool>,
+    pub assignment_group_id: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]

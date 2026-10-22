@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-work-put"
+description = "Enables the work_put command without any pre-configured scope."
+commands.allow = ["work_put"]
+
+[[permission]]
+identifier = "deny-work-put"
+description = "Denies the work_put command without any pre-configured scope."
+commands.deny = ["work_put"]

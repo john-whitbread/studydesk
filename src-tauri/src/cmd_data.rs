@@ -33,6 +33,10 @@ pub struct Dashboard {
     /// Non-fatal problems, e.g. one course hides its assignments.
     notices: Vec<String>,
     synced_at: u64,
+    /// Due dates moved, new work, grades posted (last 3 weeks).
+    changes: Vec<studydesk_core::changes::Change>,
+    /// Dates pinned (or moved) from announcements during this refresh.
+    auto_pinned: Vec<studydesk_core::vault::PinnedDate>,
 }
 
 fn label(c: &Course) -> String {
@@ -80,9 +84,11 @@ pub async fn sync_all(app: tauri::AppHandle, state: State<'_, AppState>) -> Resu
     let results: Vec<(u64, Result<Vec<Assignment>>)> = stream::iter(futures).buffer_unordered(4).collect().await;
 
     let mut assignments = Vec::new();
+    let mut fetched = std::collections::BTreeSet::new();
     for (id, r) in results {
         match r {
             Ok(mut list) => {
+                fetched.insert(id);
                 for a in &mut list {
                     a.course_id = id;
                 }
@@ -100,7 +106,8 @@ pub async fn sync_all(app: tauri::AppHandle, state: State<'_, AppState>) -> Resu
     }
 
     let today = chrono::Local::now().date_naive();
-    let start = (today - chrono::Duration::days(21)).format("%Y-%m-%d").to_string();
+    // 45 days: older announcements can still name upcoming dates.
+    let start = (today - chrono::Duration::days(45)).format("%Y-%m-%d").to_string();
     let end = (today + chrono::Duration::days(1)).format("%Y-%m-%d").to_string();
     let mut announcements = match canvas.announcements(&ids, &start, &end).await {
         Ok(a) => a,
@@ -112,17 +119,32 @@ pub async fn sync_all(app: tauri::AppHandle, state: State<'_, AppState>) -> Resu
     };
     announcements.sort_by(|a, b| b.posted_at.cmp(&a.posted_at));
 
-    {
+    let (changes, auto_pinned) = {
         let mut g = state.session.write().await;
-        if let Some(s) = g.as_mut() {
-            s.course_labels = courses.iter().map(|c| (c.id, label(c))).collect();
-            // Every assignment, for reminders and the date scanner's duplicate check.
-            s.upcoming = assignments
-                .iter()
-                .map(|a| (courses.iter().find(|c| c.id == a.course_id).map(|c| c.course_code.clone()).unwrap_or_default(), a.clone()))
-                .collect();
+        let s = g.as_mut().ok_or(CoreError::Locked)?;
+        s.course_labels = courses.iter().map(|c| (c.id, label(c))).collect();
+        // Every assignment, for reminders and the date scanner's duplicate check.
+        s.upcoming = assignments
+            .iter()
+            .map(|a| (courses.iter().find(|c| c.id == a.course_id).map(|c| c.course_code.clone()).unwrap_or_default(), a.clone()))
+            .collect();
+
+        // What changed since last time (only courses that loaded this time).
+        let now = now_ms() as i64;
+        let new_changes = studydesk_core::changes::diff(&s.data.snapshot, &assignments, &fetched, now);
+        studydesk_core::changes::merge(&mut s.data.changes, new_changes, now);
+        s.data.snapshot.retain(|_, snap| !fetched.contains(&snap.course_id));
+        for a in &assignments {
+            s.data.snapshot.insert(a.id, studydesk_core::changes::snap_of(a));
         }
-    }
+
+        let visible: Vec<Course> = courses.iter().filter(|c| !hidden.contains(&c.id)).cloned().collect();
+        let auto_pinned = crate::cmd_dates::auto_pin(s, &visible, &announcements);
+        if let Err(e) = state.persist(s) {
+            notices.push(format!("Couldn't save: {e}"));
+        }
+        (s.data.changes.clone(), auto_pinned)
+    };
 
     let courses = courses
         .into_iter()
@@ -147,6 +169,8 @@ pub async fn sync_all(app: tauri::AppHandle, state: State<'_, AppState>) -> Resu
         unread_count,
         notices,
         synced_at: now_ms(),
+        changes,
+        auto_pinned,
     })
 }
 

@@ -79,6 +79,12 @@ pub struct Prefs {
     /// Set by first-time setup; cleared when the tour is finished or skipped.
     /// Missing in vaults from older versions, so existing users don't get it.
     pub tour_pending: bool,
+    /// Pin exam/quiz/due dates found in announcements automatically.
+    pub auto_dates: bool,
+    /// Office hours you confirmed.
+    pub office_hours: Vec<crate::office_hours::OfficeHours>,
+    /// Your default hours per kind of work ("lab", "report", …), overriding Studydesk's.
+    pub estimates: BTreeMap<String, f64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
@@ -95,6 +101,10 @@ pub struct PinnedDate {
     pub kind: String,
     pub weight: Option<String>,
     pub source: String,
+    /// Added automatically from an announcement (shown with an undo).
+    pub auto: bool,
+    /// Canvas link to where it came from, when known.
+    pub url: Option<String>,
 }
 
 impl Default for Prefs {
@@ -105,6 +115,9 @@ impl Default for Prefs {
             accent: "blue".into(),
             course_colors: BTreeMap::new(),
             tour_pending: false,
+            auto_dates: true,
+            office_hours: Vec::new(),
+            estimates: BTreeMap::new(),
         }
     }
 }
@@ -129,6 +142,15 @@ pub struct VaultData {
     /// Read-only calendar links (Google secret address, Outlook, etc.).
     #[serde(default)]
     pub cal_links: Vec<CalLink>,
+    /// Your checklist, rubric self-check, notes and estimate per assignment.
+    #[serde(default)]
+    pub work: BTreeMap<String, crate::work::WorkItem>,
+    /// Assignments as of the last refresh, to spot changes.
+    #[serde(default)]
+    pub snapshot: BTreeMap<u64, crate::changes::Snap>,
+    /// Recent changes (due dates moved, new work, grades posted).
+    #[serde(default)]
+    pub changes: Vec<crate::changes::Change>,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
@@ -374,6 +396,9 @@ mod tests {
             google: None,
             apple: None,
             cal_links: Vec::new(),
+            work: BTreeMap::new(),
+            snapshot: BTreeMap::new(),
+            changes: Vec::new(),
         }
     }
 

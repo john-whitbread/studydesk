@@ -98,6 +98,9 @@ pub async fn setup(app: AppHandle, state: State<'_, AppState>, base_url: String,
         google: None,
         apple: None,
         cal_links: Vec::new(),
+        work: Default::default(),
+        snapshot: Default::default(),
+        changes: Vec::new(),
     };
     let data_for_seal = data.clone();
     let (bytes, key) = tauri::async_runtime::spawn_blocking(move || vault::create(&passphrase, &data_for_seal, KdfParams::DEFAULT))

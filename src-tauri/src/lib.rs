@@ -2,6 +2,7 @@
 
 mod cmd_calendar;
 mod cmd_data;
+mod cmd_extra;
 mod cmd_dates;
 mod cmd_files;
 mod cmd_gmail;
@@ -86,6 +87,20 @@ macro_rules! handlers {
             cmd_session::set_course_color,
             cmd_session::tour_pending,
             cmd_session::tour_done,
+            cmd_extra::work_all,
+            cmd_extra::work_put,
+            cmd_extra::office_hours_list,
+            cmd_extra::office_hours_save,
+            cmd_extra::office_hours_remove,
+            cmd_extra::work_prefs,
+            cmd_extra::set_work_prefs,
+            cmd_extra::changes_seen,
+            cmd_extra::grade_groups,
+            cmd_extra::modules_for,
+            cmd_extra::module_item_complete,
+            cmd_extra::set_zoom,
+            cmd_extra::diagnostics_info,
+            cmd_extra::diagnostics_save,
             cmd_calendar::calendar_status,
             cmd_calendar::calendar_connect_apple,
             cmd_calendar::calendar_disconnect_apple,
@@ -171,8 +186,22 @@ fn spawn_reminders(app: AppHandle) {
             }
             let now = chrono::Utc::now();
             let mut items = studydesk_core::reminders::from_assignments(&s.upcoming, now);
-            items.extend(cmd_dates::pinned_items(&s.data.prefs.pinned, &s.course_labels));
-            let due = studydesk_core::reminders::due_items(&items, now, &s.data.prefs.notified);
+            // Hours of work: your estimate for the assignment, else the default for its kind.
+            for it in &mut items {
+                let mut parts = it.key_base.splitn(3, ':');
+                let (Some(c), Some(a)) = (parts.next(), parts.next()) else { continue };
+                let key = format!("{c}:{a}");
+                it.hours = s.data.work.get(&key).and_then(|w| w.hours).or_else(|| {
+                    let asg = s.upcoming.iter().map(|(_, x)| x).find(|x| x.course_id.to_string() == c && x.id.to_string() == a)?;
+                    let kind = studydesk_core::effort::kind_of(&asg.name, &asg.submission_types, asg.is_quiz_assignment == Some(true));
+                    Some(studydesk_core::effort::default_hours(kind, &s.data.prefs.estimates))
+                });
+            }
+            items.extend(cmd_dates::pinned_items(&s.data.prefs.pinned, &s.course_labels, &s.data.prefs.estimates));
+            use chrono::Timelike;
+            let hour = chrono::Local::now().hour();
+            let quiet = !(7..23).contains(&hour);
+            let due = studydesk_core::reminders::due_items_q(&items, now, &s.data.prefs.notified, quiet);
             if due.is_empty() {
                 continue;
             }
