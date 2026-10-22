@@ -17,6 +17,8 @@ export interface Course {
   color?: string | null;
   folder?: string | null;
   hidden: boolean;
+  /** Assignment-group weights decide the grade (else total points). */
+  apply_assignment_group_weights?: boolean | null;
 }
 
 export interface Attachment {
@@ -81,6 +83,8 @@ export interface Assignment {
   quiz_id?: number | null;
   rubric: RubricCriterion[];
   submission?: Submission | null;
+  assignment_group_id?: number | null;
+  omit_from_final_grade?: boolean | null;
 }
 
 export interface Announcement {
@@ -142,6 +146,8 @@ export interface Dashboard {
   unreadCount: number | null;
   notices: string[];
   syncedAt: number;
+  changes: Change[];
+  autoPinned: PinnedDate[];
 }
 
 export interface AssignmentDetail { assignment: Assignment; submission: Submission | null }
@@ -197,8 +203,8 @@ export interface Finding {
   weight: string | null; snippet: string; confidence: "low" | "medium" | "high"; caution: string | null; sources: DateSource[]; inCanvas: string | null;
 }
 export interface Scanned { courseId: number; kind: string; name: string; ok: boolean; found: number; note: string | null }
-export interface ScanResult { findings: Finding[]; scanned: Scanned[] }
-export interface PinnedDate { id: string; courseId: number; date: string; time: string | null; label: string; kind: DateKind; weight: string | null; source: string }
+export interface ScanResult { findings: Finding[]; scanned: Scanned[]; officeHours: OfficeHours[] }
+export interface PinnedDate { id: string; courseId: number; date: string; time: string | null; label: string; kind: DateKind; weight: string | null; source: string; auto?: boolean; url?: string | null }
 
 export interface Appearance {
   theme: "system" | "light" | "dark";
@@ -223,3 +229,24 @@ export interface CalStatus {
 }
 export interface ExtEvent { source: string; title: string; location: string; start: number; end: number; allDay: boolean; color: string; calendar: string }
 export interface ExtEvents { events: ExtEvent[]; errors: { calendar: string; message: string }[] }
+
+// ------------------------------------------------------------- my work
+
+export interface CheckItem { text: string; done: boolean; auto: boolean; new: boolean }
+export interface RubricCheck { done: boolean; score: number | null }
+export interface WorkItem { checklist: CheckItem[]; rubric: Record<string, RubricCheck>; notes: string; hours: number | null; descHash: string; updated: number }
+export interface WorkPrefs { autoDates: boolean; estimates: Record<string, number>; kinds: [string, string, number][] }
+export interface OfficeHours { id: string; courseId: number; days: number[]; start: string; end: string; location: string | null; who: string | null; snippet: string; source: string }
+export interface Change { id: string; at: number; courseId: number; assignmentId: number; kind: "due_moved" | "due_added" | "due_removed" | "new" | "removed" | "graded" | "regraded"; name: string; from: string | null; to: string | null; seen: boolean }
+export interface AssignmentGroup { id: number; name: string; position?: number | null; group_weight?: number | null; rules?: { drop_lowest?: number | null; drop_highest?: number | null; never_drop?: number[] | null } | null }
+export interface ModuleItem {
+  id: number; module_id: number; position?: number | null; title: string; type: string; content_id?: number | null; html_url?: string | null; indent?: number | null;
+  completion_requirement?: { type?: string | null; completed?: boolean | null } | null;
+  content_details?: { due_at?: string | null; points_possible?: number | null; locked_for_user?: boolean | null } | null;
+}
+export interface Module { id: number; name: string; position?: number | null; unlock_at?: string | null; state?: string | null; items: ModuleItem[] }
+export interface CourseModules { courseId: number; modules: Module[]; note: string | null }
+export interface Diagnostics {
+  version: string; os: string; arch: string; unlocked: boolean; passphrase: boolean; canvasHost: string | null; coursesHidden: number; foldersLinked: number; foldersMissing: number;
+  gmail: boolean; apple: boolean; applePush: boolean; calendarLinks: number; pinned: number; officeHours: number; workItems: number; lastCalendarUpdate: PushReport | null;
+}

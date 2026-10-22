@@ -231,3 +231,158 @@ test("calendar grouping and overlap lanes", () => {
   const lanes = layoutDay([{ start: at(10), end: at(11, 20) }, { start: at(11), end: at(13) }, { start: at(14), end: at(15) }]);
   assert.deepEqual(lanes.map((p) => [p.lane, p.lanes]), [[0, 2], [1, 2], [0, 1]]);
 });
+
+import { courseGrade, keepBest, needOn, needOnAllRemaining, worth, type Group } from "./grades.ts";
+import type { Assignment as A2 } from "./types.ts";
+
+function ga(id: number, group: number, possible: number, score: number | null, extra: Partial<A2> = {}): A2 {
+  return {
+    id, course_id: 1, name: `A${id}`, points_possible: possible, submission_types: ["online_upload"], allowed_extensions: [], rubric: [], assignment_group_id: group,
+    submission: score == null ? { workflow_state: "unsubmitted", attachments: [], submission_comments: [] } : { score, workflow_state: "graded", attachments: [], submission_comments: [] },
+    ...extra,
+  } as A2;
+}
+const close = (a: number | null, b: number, msg = "") => assert.ok(a != null && Math.abs(a - b) < 1e-6, `${msg} expected ${b}, got ${a}`);
+
+test("grades: unweighted current and final", () => {
+  const list = [ga(1, 10, 20, 18), ga(2, 10, 10, 7), ga(3, 10, 20, null)];
+  const g: Group[] = [{ id: 10, name: "All" }];
+  close(courseGrade(list, g, false).percent, (25 / 30) * 100, "current");
+  close(courseGrade(list, g, false, new Map(), true).percent, 50, "final: ungraded = 0");
+});
+
+test("grades: weighted, empty groups don't count against you, then do once graded", () => {
+  const g: Group[] = [{ id: 1, name: "Labs", group_weight: 30 }, { id: 2, name: "Exams", group_weight: 70 }];
+  const list = [ga(1, 1, 10, 8), ga(2, 1, 10, 9), ga(3, 2, 100, null)];
+  close(courseGrade(list, g, true).percent, 85);
+  list[2] = ga(3, 2, 100, 70);
+  close(courseGrade(list, g, true).percent, 0.3 * 85 + 0.7 * 70);
+});
+
+test("grades: drop lowest picks the best set, not the lowest percentage", () => {
+  // 1/2 and 10/20 are both 50%; dropping 10/20 leaves 19/22 = 86.36%, dropping 1/2 leaves 28/40 = 70%.
+  const list = [ga(1, 1, 2, 1), ga(2, 1, 20, 10), ga(3, 1, 20, 18)];
+  const g: Group[] = [{ id: 1, name: "Quizzes", rules: { drop_lowest: 1 } }];
+  const r = courseGrade(list, g, false);
+  close(r.percent, (19 / 22) * 100);
+  assert.deepEqual(r.groups[0].items.filter((i) => i.dropped).map((i) => i.id), [2]);
+  // never_drop on the 10/20 forces dropping the 1/2.
+  close(courseGrade(list, [{ ...g[0], rules: { drop_lowest: 1, never_drop: [2] } }], false).percent, 70);
+  // Drop highest removes the best.
+  close(courseGrade([ga(1, 1, 10, 5), ga(2, 1, 10, 9), ga(3, 1, 10, 10)], [{ id: 1, name: "Q", rules: { drop_highest: 1 } }], false).percent, 70);
+  // Never drops everything.
+  close(courseGrade([ga(1, 1, 10, 5)], [{ id: 1, name: "Q", rules: { drop_lowest: 3 } }], false).percent, 50);
+  // keepBest agrees with brute force on random data.
+  for (let t = 0; t < 200; t++) {
+    const pool = Array.from({ length: 6 }, () => ({ possible: 1 + Math.floor(Math.random() * 20), score: 0 }));
+    pool.forEach((p) => (p.score = Math.round(Math.random() * p.possible * 10) / 10));
+    const keep = 1 + Math.floor(Math.random() * 5);
+    const got = keepBest(pool, [], keep, true);
+    let bestR = -1;
+    for (let m = 0; m < 1 << pool.length; m++) {
+      const sub = pool.filter((_, i) => m & (1 << i));
+      if (sub.length !== keep) continue;
+      const p = sub.reduce((a, x) => a + x.possible, 0);
+      bestR = Math.max(bestR, sub.reduce((a, x) => a + x.score, 0) / p);
+    }
+    const gp = got.reduce((a, x) => a + x.possible, 0);
+    assert.ok(Math.abs(got.reduce((a, x) => a + x.score, 0) / gp - bestR) < 1e-9, "keepBest is optimal");
+  }
+});
+
+test("grades: excused, omitted, hidden and extra credit", () => {
+  const g: Group[] = [{ id: 1, name: "All" }];
+  const excused = ga(2, 1, 50, null, { submission: { excused: true, attachments: [], submission_comments: [] } });
+  const omitted = ga(3, 1, 50, 0, { omit_from_final_grade: true });
+  const hidden = ga(4, 1, 50, null, { submission: { workflow_state: "graded", score: null, attachments: [], submission_comments: [] } });
+  const bonus = ga(5, 1, 0, 2);
+  const r = courseGrade([ga(1, 1, 20, 16), excused, omitted, hidden, bonus], g, false);
+  close(r.percent, (18 / 20) * 100);
+  assert.equal(r.hidden, 1);
+  close(courseGrade([ga(1, 1, 20, 16), hidden], g, false, new Map(), true).percent, 80, "hidden stays unknown in final");
+});
+
+test("grades: what-if and what do I need", () => {
+  const g: Group[] = [{ id: 1, name: "All" }];
+  const list = [ga(1, 1, 50, 40), ga(2, 1, 50, null)];
+  close(courseGrade(list, g, false, new Map([[2, 45]])).percent, 85);
+  const n = needOn(list, g, false, new Map(), 2, 85);
+  assert.equal(n.kind, "need");
+  if (n.kind === "need") close(n.points, 45);
+  const n50 = needOn(list, g, false, new Map(), 2, 50);
+  assert.ok(n50.kind === "need" && Math.abs(n50.points - 10) < 1e-6, "40 + x = 50 of 100");
+  assert.equal(needOn([ga(1, 1, 50, 50), ga(2, 1, 50, null)], g, false, new Map(), 2, 50).kind, "already");
+  const imp = needOn(list, g, false, new Map(), 2, 200);
+  assert.equal(imp.kind, "impossible");
+  // Same % on everything left: 40/50 done, two 25-pt items left, target 70% → (40 + 50r)/100 = 0.7 → r = 60%.
+  const three = [ga(1, 1, 50, 40), ga(2, 1, 25, null), ga(3, 1, 25, null)];
+  const all = needOnAllRemaining(three, g, false, new Map(), 70);
+  assert.ok(all.kind === "need" && Math.abs(all.percent - 60) < 0.01, JSON.stringify(all));
+  // Weighted: a 10-pt lab in a 30% group of 20 pts = 15% of the course.
+  const wg: Group[] = [{ id: 1, name: "Labs", group_weight: 30 }, { id: 2, name: "Exams", group_weight: 70 }];
+  close(worth(ga(1, 1, 10, null), [ga(1, 1, 10, null), ga(2, 1, 10, null), ga(3, 2, 100, null)], wg, true), 15);
+  close(worth(ga(1, 1, 10, null), [ga(1, 1, 10, null), ga(2, 1, 30, null)], g, false), 25);
+});
+
+import { kindOf, defaultHours } from "./effort.ts";
+import { requirementsFrom, mergeChecklist, descHash } from "./checklist.ts";
+import { loadByDay, collisions } from "./workload.ts";
+
+test("effort kinds match the Rust side", () => {
+  const k = (n: string) => kindOf(n, ["online_upload"], false);
+  assert.equal(k("Lab 3 – Thick-walled cylinders"), "lab");
+  assert.equal(k("Problem Set 6 – Torsion"), "problem_set");
+  assert.equal(k("PS6"), "problem_set");
+  assert.equal(k("Final project report"), "project");
+  assert.equal(k("Reflection – CANDU site visit"), "short");
+  assert.equal(k("Midterm exam"), "exam");
+  assert.equal(k("Collaboration"), "other");
+  assert.equal(kindOf("Week 7", ["online_quiz"], false), "quiz");
+  assert.equal(defaultHours("lab"), 4);
+  assert.equal(defaultHours("lab", { lab: 6 }), 6);
+});
+
+test("checklist from descriptions", () => {
+  assert.deepEqual(
+    requirementsFrom("<p>Submit one PDF containing:</p><ol><li>Free-body diagram and assumptions</li><li>Radial and hoop stress plots</li><li>FEA comparison, with % difference</li></ol>"),
+    ["Free-body diagram and assumptions", "Radial and hoop stress plots", "FEA comparison, with % difference"],
+  );
+  assert.deepEqual(requirementsFrom("<p>1. Title page<br>2. Abstract (150 words)<br>3) Results</p>"), ["Title page", "Abstract (150 words)", "Results"]);
+  assert.deepEqual(requirementsFrom("<p>Your report must include a free-body diagram. Late penalty is 10%. Make sure units are labelled on every plot.</p>"), [
+    "Your report must include a free-body diagram",
+    "Make sure units are labelled on every plot",
+  ]);
+  assert.deepEqual(requirementsFrom("<p>Read chapter 4.</p>"), []);
+  // Description edited: tick follows the item, new item flagged, your own item kept.
+  const before = [
+    { text: "Free-body diagram", done: true, auto: true, new: false },
+    { text: "Stress plots", done: false, auto: true, new: false },
+    { text: "Ask TA about units", done: false, auto: false, new: false },
+  ];
+  const after = mergeChecklist(before, ["Free-body diagram (labelled)", "Stress plots", "Error analysis"], false);
+  assert.deepEqual(after.map((i) => [i.text, i.done, i.new]), [
+    ["Free-body diagram (labelled)", true, false],
+    ["Stress plots", false, false],
+    ["Error analysis", false, true],
+    ["Ask TA about units", false, false],
+  ]);
+  assert.notEqual(descHash("<p>a</p>"), descHash("<p>b</p>"));
+  assert.equal(descHash("<p>a</p>"), descHash("<div>a</div>"));
+});
+
+test("workload by hours and collisions", () => {
+  const day = (d: number, h = 23) => new Date(2026, 9, d, h, 59).getTime();
+  const items = [
+    { key: "a", title: "Lab 3", due: day(22), hours: 4, open: true },
+    { key: "b", title: "PS 6", due: day(22, 17), hours: 3, open: true },
+    { key: "c", title: "Reflection", due: day(22, 9), hours: 1, open: true },
+    { key: "d", title: "Done thing", due: day(22), hours: 9, open: false },
+    { key: "e", title: "Midterm", due: day(24, 10), hours: 8, open: true, exam: true },
+    { key: "f", title: "Report", due: day(23), hours: 8, open: true },
+  ];
+  const load = loadByDay(items, new Date(2026, 9, 21).getTime(), 5);
+  assert.deepEqual(load.map((d) => [d.hours, d.count, d.level]), [[0, 0, "none"], [8, 3, "heavy"], [8, 1, "heavy"], [8, 1, "heavy"], [0, 0, "none"]]);
+  const c = collisions(load, items);
+  assert.equal(c.length, 3);
+  assert.match(c[0].text, /3 due, about 8 h/);
+});

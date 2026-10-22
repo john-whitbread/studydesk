@@ -2,7 +2,7 @@
 // no filesystem, network or shell access exists on this side.
 
 import type {
-  PinnedDate, ScanResult, UpdateInfo, CalStatus, ExtEvents, Appearance,
+  PinnedDate, ScanResult, UpdateInfo, CalStatus, ExtEvents, WorkItem, WorkPrefs, OfficeHours, Change, AssignmentGroup, CourseModules, Diagnostics, Appearance,
   GmailStatus, ReplyInfo, ThreadDetail, ThreadPage,
   ApiError, AssignmentDetail, Conversation, Dashboard, Entry, FileRef, Page, PickedFile, Preflight, Profile, Recipient, Settings, Status, Submission,
 } from "./types.ts";
@@ -107,6 +107,20 @@ export const api = {
   getAppearance: () => call<Appearance>("get_appearance"),
   setAppearance: (theme: string | null, accent: string | null) => call<Appearance>("set_appearance", { theme, accent }),
   setCourseColor: (courseId: number, color: string | null) => call<Appearance>("set_course_color", { courseId, color }),
+  workAll: () => call<Record<string, WorkItem>>("work_all"),
+  workPut: (key: string, item: WorkItem) => call<void>("work_put", { key, item }),
+  officeHoursList: () => call<OfficeHours[]>("office_hours_list"),
+  officeHoursSave: (item: OfficeHours) => call<OfficeHours[]>("office_hours_save", { item }),
+  officeHoursRemove: (id: string) => call<OfficeHours[]>("office_hours_remove", { id }),
+  workPrefs: () => call<WorkPrefs>("work_prefs"),
+  setWorkPrefs: (autoDates: boolean | null, estimates: Record<string, number> | null) => call<WorkPrefs>("set_work_prefs", { autoDates, estimates }),
+  changesSeen: (ids: string[]) => call<Change[]>("changes_seen", { ids }),
+  gradeGroups: (courseIds: number[]) => call<{ courseId: number; groups: AssignmentGroup[] }[]>("grade_groups", { courseIds }),
+  modulesFor: (courseIds: number[]) => call<CourseModules[]>("modules_for", { courseIds }),
+  moduleItemComplete: (courseId: number, moduleId: number, itemId: number, view: boolean) => call<void>("module_item_complete", { courseId, moduleId, itemId, view }),
+  setZoom: (scale: number) => call<void>("set_zoom", { scale }),
+  diagnosticsInfo: () => call<Diagnostics>("diagnostics_info"),
+  diagnosticsSave: (text: string) => call<string | null>("diagnostics_save", { text }),
   calendarStatus: () => call<CalStatus>("calendar_status"),
   calendarConnectApple: (email: string, password: string) => call<CalStatus>("calendar_connect_apple", { email, password }),
   calendarDisconnectApple: (removeCalendar: boolean) => call<CalStatus>("calendar_disconnect_apple", { removeCalendar }),
