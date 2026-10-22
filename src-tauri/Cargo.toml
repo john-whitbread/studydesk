@@ -4,7 +4,7 @@ resolver = "2"
 
 [package]
 name = "studydesk"
-version = "0.4.1"
+version = "0.5.0"
 description = "Canvas LMS, course folders, school email and calendar in one Windows app."
 edition = "2021"
 publish = false

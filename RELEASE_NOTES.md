@@ -1,1 +1,10 @@
-- Fix: Apple Calendar could fail with "iCloud refused to create the Studydesk calendar". Studydesk now creates it the way iCloud expects, retries more simply if refused, and also uses a calendar you make yourself named "Studydesk".
+- My work on every assignment: a requirements checklist pulled from the instructions (it keeps your ticks and flags anything new if the instructions change), a rubric self-check with your own score, your hours estimate, and notes (searchable with Ctrl K). If something isn't ticked when you submit, Studydesk asks first.
+- Grades: each course worked out like Canvas does it (weights, dropped marks, excused work), with what-if scores, the range you can still finish in, and what you need on the final or on everything left to hit your target. Grades that aren't released yet are never counted as 0.
+- Announcements: quiz, test and due dates in announcements are added to Key dates and the course list automatically (with Undo). "Moved to Friday" moves the date.
+- Office hours: found in syllabi, course pages and announcements; once you confirm them they show on Today, the calendar and each assignment.
+- Workload in hours instead of counts, with a warning when too much lands on one day, and a reminder to start big work early.
+- What changed: due dates moved, new or removed work and new grades are flagged since you last looked.
+- Modules: readings and pages to view or mark done, right in Studydesk.
+- Text size (90–150%, Ctrl + / Ctrl −), a compact layout, better keyboard and screen reader labels, and Windows high contrast support.
+- Fixed: unticking a course in Settings now hides it everywhere straight away. Ontario Tech course names are tidier.
+- Settings: a diagnostics report (no passwords or tokens) for when something goes wrong.
