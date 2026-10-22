@@ -1,7 +1,7 @@
 import { Download, FolderSearch, KeyRound, Link, Lock, RefreshCw, Unlink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.ts";
-import { lockNow, reportError, setState, sync, toast, useStore } from "../lib/store.ts";
+import { lockNow, reportError, setCourseHidden, setState, sync, toast, useStore } from "../lib/store.ts";
 import type { ApiError, Settings as S, UpdateInfo } from "../lib/types.ts";
 import { installUpdate } from "../lib/update.ts";
 import { courseColor } from "../lib/util.ts";
@@ -126,12 +126,7 @@ export function Settings() {
                           <input
                             type="checkbox"
                             checked={!hidden.has(c.id)}
-                            onChange={(e) =>
-                              api
-                                .setCourseHidden(c.id, !e.target.checked)
-                                .then(() => sync())
-                                .catch((er) => reportError(er))
-                            }
+                            onChange={(e) => void setCourseHidden(c.id, !e.target.checked).then(reload)}
                           />
                           <span className="small">Sidebar</span>
                         </label>

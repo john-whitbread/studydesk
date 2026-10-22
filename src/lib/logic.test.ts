@@ -172,6 +172,12 @@ test("course names: term prefix and section numbers are removed", () => {
   assert.deepEqual(t("MECE-2230U", "202609 - Statics"), ["MECE 2230U", "Statics"]);
   assert.deepEqual(t("202609 - Nuclear Plant Operation (NUCL 2020U)", "202609 - Nuclear Plant Operation (NUCL 2020U)"), ["NUCL 2020U", "Nuclear Plant Operation"]);
   assert.deepEqual(t("MECE 2420U", "Solid Mechanics II"), ["MECE 2420U", "Solid Mechanics II"]);
+  // Ontario Tech cross-listed sections and registration numbers.
+  assert.deepEqual(t("MATH 2860U", "Differential Equations for Eng 46.202609.XLIST"), ["MATH 2860U", "Differential Equations for Eng"]);
+  assert.deepEqual(t("MECE 2230U", "Statics 09.202609.XLIST"), ["MECE 2230U", "Statics"]);
+  assert.deepEqual(t("Nuclear Plant Operation - 44162", "Nuclear Plant Operation - 44162"), ["Nuclear Plant Operation", "Nuclear Plant Operation"]);
+  assert.deepEqual(t("Structure & Prop. of Materials - 43380", "Structure & Prop. of Materials - 43380"), ["Structure & Prop. of Materials", "Structure & Prop. of Materials"]);
+  assert.deepEqual(t("FEAS - Upper Year Academic Advising", "FEAS - Upper Year Academic Advising"), ["FEAS - Upper Year Academic Advising", "FEAS - Upper Year Academic Advising"]);
   // Not a course code: kept as is.
   assert.deepEqual(t("AI-Students", "Academic Integrity Modules for Students"), ["AI-Students", "Academic Integrity Modules for Students"]);
   assert.deepEqual(t("202609 - Prof Competencies", "202609 - Prof Competencies"), ["Prof Competencies", "Prof Competencies"]);
@@ -182,6 +188,14 @@ test("course names: term prefix and section numbers are removed", () => {
     tidyCourse({ id: 2, course_code: "202609 - Thermodynamics - MECE-2320U", name: "202609 - Thermodynamics - MECE-2320U" }),
   ]);
   assert.deepEqual([r.get(1), r.get(2)], ["2230", "2320"]);
+  const r2 = railLabels(
+    [
+      { id: 1, course_code: "Nuclear Plant Operation - 44162", name: "Nuclear Plant Operation - 44162" },
+      { id: 2, course_code: "Thermodynamics - 43421", name: "Thermodynamics - 43421" },
+      { id: 3, course_code: "MATH 2860U", name: "Differential Equations for Eng 46.202609.XLIST" },
+    ].map(tidyCourse),
+  );
+  assert.deepEqual([r2.get(1), r2.get(2), r2.get(3)], ["NPO", "THER", "2860"]);
 });
 
 import { addDays, addMonths, byDay, dayStart, layoutDay, monthGrid, weekStart, type CalItem } from "./calendar.ts";

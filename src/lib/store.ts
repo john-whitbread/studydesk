@@ -219,8 +219,14 @@ async function maybeStartTour() {
 }
 
 let syncing: Promise<void> | null = null;
+let syncAgain = false;
+/** Refreshes from Canvas. A call made while a refresh is running queues one
+ *  more afterwards, so a settings change made mid-refresh is never lost. */
 export function sync(): Promise<void> {
-  if (syncing) return syncing;
+  if (syncing) {
+    syncAgain = true;
+    return syncing;
+  }
   setState({ syncing: true, syncError: null });
   syncing = (async () => {
     try {
@@ -239,6 +245,10 @@ export function sync(): Promise<void> {
     } finally {
       setState({ syncing: false });
       syncing = null;
+      if (syncAgain) {
+        syncAgain = false;
+        void sync();
+      }
     }
   })();
   return syncing;
@@ -299,5 +309,20 @@ export async function runScan(courseIds: number[] | null = null) {
     reportError(e, "Scan failed");
   } finally {
     setState({ scanning: null });
+  }
+}
+
+/** Shows or hides a course everywhere at once, then saves and refreshes. */
+export async function setCourseHidden(courseId: number, hidden: boolean) {
+  const flip = (h: boolean) =>
+    setState((st) => ({ dash: st.dash ? { ...st.dash, courses: st.dash.courses.map((c) => (c.id === courseId ? { ...c, hidden: h } : c)) } : st.dash }));
+  flip(hidden);
+  try {
+    await api.setCourseHidden(courseId, hidden);
+    // Shown again: its assignments weren't fetched while hidden.
+    if (!hidden) void sync();
+  } catch (e) {
+    flip(!hidden);
+    reportError(e);
   }
 }
