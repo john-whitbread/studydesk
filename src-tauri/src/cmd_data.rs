@@ -132,16 +132,24 @@ pub async fn sync_all(app: tauri::AppHandle, state: State<'_, AppState>) -> Resu
         // What changed since last time (only courses that loaded this time).
         let now = now_ms() as i64;
         let new_changes = studydesk_core::changes::diff(&s.data.snapshot, &assignments, &fetched, now);
+        let before = (s.data.changes.len(), s.data.changes.first().map(|c| c.id.clone()));
         studydesk_core::changes::merge(&mut s.data.changes, new_changes, now);
-        s.data.snapshot.retain(|_, snap| !fetched.contains(&snap.course_id));
+        let mut snapshot = s.data.snapshot.clone();
+        snapshot.retain(|_, snap| !fetched.contains(&snap.course_id));
         for a in &assignments {
-            s.data.snapshot.insert(a.id, studydesk_core::changes::snap_of(a));
+            snapshot.insert(a.id, studydesk_core::changes::snap_of(a));
         }
+        let snapshot_changed = snapshot != s.data.snapshot;
+        s.data.snapshot = snapshot;
 
         let visible: Vec<Course> = courses.iter().filter(|c| !hidden.contains(&c.id)).cloned().collect();
         let auto_pinned = crate::cmd_dates::auto_pin(s, &visible, &announcements);
-        if let Err(e) = state.persist(s) {
-            notices.push(format!("Couldn't save: {e}"));
+        // Only write the vault when something actually changed (most refreshes change nothing).
+        let changed = snapshot_changed || !auto_pinned.is_empty() || before != (s.data.changes.len(), s.data.changes.first().map(|c| c.id.clone()));
+        if changed {
+            if let Err(e) = state.persist(s) {
+                notices.push(format!("Couldn't save: {e}"));
+            }
         }
         (s.data.changes.clone(), auto_pinned)
     };

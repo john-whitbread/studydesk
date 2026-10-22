@@ -120,7 +120,7 @@ pub fn merge(list: &mut Vec<Change>, new: Vec<Change>, now_ms: i64) {
     }
     let cutoff = now_ms - KEEP_DAYS * 86_400_000;
     list.retain(|c| c.at >= cutoff);
-    list.sort_by(|a, b| b.at.cmp(&a.at));
+    list.sort_by_key(|c| std::cmp::Reverse(c.at));
     list.truncate(MAX_CHANGES);
 }
 

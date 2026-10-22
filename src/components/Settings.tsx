@@ -94,7 +94,7 @@ export function Settings() {
                             <>
                               <span className="path grow">{l.path}</span>
                               {!l.exists && <span className="chip tone-danger">Missing</span>}
-                              <button className="icon-btn" title="Show in File Explorer" onClick={() => api.revealFile({ kind: "linked", courseId: c.id, rel: "" }).catch((e) => reportError(e))}>
+                              <button className="icon-btn" title="Show in File Explorer" aria-label="Show in File Explorer" onClick={() => api.revealFile({ kind: "linked", courseId: c.id, rel: "" }).catch((e) => reportError(e))}>
                                 <FolderSearch size={14} />
                               </button>
                               <button className="btn btn-sm" onClick={() => linkFolder(c).then(reload)}>

@@ -145,7 +145,7 @@ export function FilesPane({ course, target }: { course: Course; target: Assignme
         <FolderOpen size={15} />
         <h2 className="ellipsis" title={course.folder}>{folderName}</h2>
         <div className="right">
-          <button className="icon-btn" title="Show in File Explorer" onClick={() => api.revealFile({ kind: "linked", courseId: course.id, rel }).catch((e) => reportError(e))}>
+          <button className="icon-btn" title="Show in File Explorer" aria-label="Show in File Explorer" onClick={() => api.revealFile({ kind: "linked", courseId: course.id, rel }).catch((e) => reportError(e))}>
             <FolderSearch size={15} />
           </button>
           <button className="btn btn-sm btn-ghost" onClick={() => linkFolder(course)}>
@@ -154,7 +154,7 @@ export function FilesPane({ course, target }: { course: Course; target: Assignme
         </div>
       </div>
       <div className="toolbar">
-        <button className="icon-btn" disabled={!rel} onClick={() => setRel(crumbs.slice(0, -1).join("/"))} title="Up one folder (Backspace)">
+        <button className="icon-btn" disabled={!rel} onClick={() => setRel(crumbs.slice(0, -1).join("/"))} title="Up one folder (Backspace)" aria-label="Up one folder (Backspace)">
           <ArrowUp size={15} />
         </button>
         <div className="search">
@@ -214,16 +214,17 @@ export function FilesPane({ course, target }: { course: Course; target: Assignme
                 {!e.isDir && e.ext && <span className="ext">{e.ext}</span>}
                 <span className="acts" style={{ marginLeft: "auto" }}>
                   {!e.isDir && canStage && (
-                    <button className="icon-btn sm" title={`Add to “${target!.name}”`} onClick={(ev) => (ev.stopPropagation(), stage([e]))}>
+                    <button className="icon-btn sm" title={`Add to “${target!.name}”`} aria-label={`Add to “${target!.name}”`} onClick={(ev) => (ev.stopPropagation(), stage([e]))}>
                       <Upload size={13} />
                     </button>
                   )}
-                  <button className="icon-btn sm" title="Show in File Explorer" onClick={(ev) => (ev.stopPropagation(), api.revealFile(fileRef(e)).catch((er) => reportError(er)))}>
+                  <button className="icon-btn sm" title="Show in File Explorer" aria-label="Show in File Explorer" onClick={(ev) => (ev.stopPropagation(), api.revealFile(fileRef(e)).catch((er) => reportError(er)))}>
                     <FolderSearch size={13} />
                   </button>
                   <button
                     className="icon-btn sm"
                     title="Copy full path"
+                    aria-label="Copy full path"
                     onClick={(ev) => {
                       ev.stopPropagation();
                       api

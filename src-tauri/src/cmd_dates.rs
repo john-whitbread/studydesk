@@ -272,7 +272,7 @@ pub async fn dates_scan(app: AppHandle, state: State<'_, AppState>, course_ids: 
         .await?
         .into_iter()
         .filter(|c| !hidden.contains(&c.id))
-        .filter(|c| course_ids.as_ref().map_or(true, |ids| ids.contains(&c.id)))
+        .filter(|c| course_ids.as_ref().is_none_or(|ids| ids.contains(&c.id)))
         .collect();
     let total = courses.len();
     let futures: Vec<_> = courses
@@ -428,6 +428,78 @@ pub fn pinned_items(pins: &[PinnedDate], labels: &std::collections::HashMap<u64,
         .collect()
 }
 
+// ------------------------------------------------------------ announcements
+
+/// Dates found in announcements: quizzes, exams and due dates are pinned
+/// automatically (unless Canvas already lists them as assignments or you
+/// removed them before); a "moved" announcement updates the pin it moved.
+/// Returns what was added or changed, for the "added from announcement" notice.
+pub fn auto_pin(s: &mut crate::state::Session, courses: &[Course], announcements: &[studydesk_core::canvas::models::Announcement]) -> Vec<PinnedDate> {
+    if !s.data.prefs.auto_dates {
+        return vec![];
+    }
+    let today = Local::now().date_naive();
+    let mut touched = Vec::new();
+    // Oldest first, so "Quiz 2 moved to Friday" moves the pin the earlier announcement made.
+    let mut ordered: Vec<&studydesk_core::canvas::models::Announcement> = announcements.iter().collect();
+    ordered.sort_by(|a, b| a.posted_at.cmp(&b.posted_at));
+    for an in ordered {
+        let Some(cid) = an.context_code.as_deref().and_then(|c| c.strip_prefix("course_")).and_then(|c| c.parse::<u64>().ok()) else { continue };
+        let Some(course) = courses.iter().find(|c| c.id == cid) else { continue };
+        let Some(posted) = local_date(&an.posted_at) else { continue };
+        let src = Source { kind: "announcement".into(), name: an.title.clone(), url: an.html_url.clone() };
+        let found = studydesk_core::announce::extract(&an.title, an.message.as_deref().unwrap_or(""), posted, cid, &src, &ctx_for(course));
+        let moved = studydesk_core::announce::mentions_move(&an.title, an.message.as_deref().unwrap_or(""));
+        for f in found {
+            if touched.len() >= 10 || f.kind == dates::Kind::Info || f.confidence < Confidence::Medium {
+                continue;
+            }
+            let Ok(d) = NaiveDate::parse_from_str(&f.date, "%Y-%m-%d") else { continue };
+            if d < today || s.data.prefs.dismissed.contains(&f.id) || s.data.prefs.pinned.iter().any(|p| p.id == f.id) {
+                continue;
+            }
+            let kind = format!("{:?}", f.kind).to_lowercase();
+            // Already a Canvas assignment that day? Then it's on your list already.
+            let in_canvas = s.upcoming.iter().map(|(_, a)| a).filter(|a| a.course_id == cid && local_date(&a.due_at) == Some(d)).any(|a| f.kind == dates::Kind::Deliverable || dates::same_item(&f.label, f.kind, &a.name));
+            if in_canvas {
+                continue;
+            }
+            // Same day, same kind already pinned (by you or the scanner).
+            if s.data.prefs.pinned.iter().any(|p| p.course_id == cid && p.date == f.date && p.kind == kind) {
+                continue;
+            }
+            // "Quiz 2 moved to Friday": move the pin rather than adding a second one.
+            if moved {
+                if let Some(p) = s.data.prefs.pinned.iter_mut().find(|p| p.auto && p.course_id == cid && p.kind == kind && p.date != f.date && dates::same_item(&p.label, f.kind, &f.label)) {
+                    p.date = f.date.clone();
+                    p.time = f.time.clone().or(p.time.take());
+                    p.source = format!("Announcement: {} (moved)", an.title);
+                    touched.push(p.clone());
+                    continue;
+                }
+            }
+            let pin = PinnedDate {
+                id: f.id.clone(),
+                course_id: cid,
+                date: f.date.clone(),
+                time: f.time.clone(),
+                label: f.label.chars().take(120).collect(),
+                kind,
+                weight: f.weight.clone(),
+                source: format!("Announcement: {}", an.title.chars().take(100).collect::<String>()),
+                auto: true,
+                url: an.html_url.clone(),
+            };
+            s.data.prefs.pinned.push(pin.clone());
+            touched.push(pin);
+        }
+    }
+    if !touched.is_empty() {
+        s.data.prefs.pinned.sort_by(|a, b| (a.date.as_str(), a.time.as_deref()).cmp(&(b.date.as_str(), b.time.as_deref())));
+    }
+    touched
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -530,73 +602,4 @@ mod tests {
         let mut bad = PinnedDate { date: "2026-10-28".into(), label: "x".into(), kind: "party".into(), ..Default::default() };
         assert!(validate(&mut bad).is_err());
     }
-}
-
-// ------------------------------------------------------------ announcements
-
-/// Dates found in announcements: quizzes, exams and due dates are pinned
-/// automatically (unless Canvas already lists them as assignments or you
-/// removed them before); a "moved" announcement updates the pin it moved.
-/// Returns what was added or changed, for the "added from announcement" notice.
-pub fn auto_pin(s: &mut crate::state::Session, courses: &[Course], announcements: &[studydesk_core::canvas::models::Announcement]) -> Vec<PinnedDate> {
-    if !s.data.prefs.auto_dates {
-        return vec![];
-    }
-    let today = Local::now().date_naive();
-    let mut touched = Vec::new();
-    for an in announcements {
-        let Some(cid) = an.context_code.as_deref().and_then(|c| c.strip_prefix("course_")).and_then(|c| c.parse::<u64>().ok()) else { continue };
-        let Some(course) = courses.iter().find(|c| c.id == cid) else { continue };
-        let Some(posted) = local_date(&an.posted_at) else { continue };
-        let src = Source { kind: "announcement".into(), name: an.title.clone(), url: an.html_url.clone() };
-        let found = studydesk_core::announce::extract(&an.title, an.message.as_deref().unwrap_or(""), posted, cid, &src, &ctx_for(course));
-        let moved = studydesk_core::announce::mentions_move(&an.title, an.message.as_deref().unwrap_or(""));
-        for f in found {
-            if touched.len() >= 10 || f.kind == dates::Kind::Info || f.confidence < Confidence::Medium {
-                continue;
-            }
-            let Ok(d) = NaiveDate::parse_from_str(&f.date, "%Y-%m-%d") else { continue };
-            if d < today || s.data.prefs.dismissed.contains(&f.id) || s.data.prefs.pinned.iter().any(|p| p.id == f.id) {
-                continue;
-            }
-            let kind = format!("{:?}", f.kind).to_lowercase();
-            // Already a Canvas assignment that day? Then it's on your list already.
-            let in_canvas = s.upcoming.iter().map(|(_, a)| a).filter(|a| a.course_id == cid && local_date(&a.due_at) == Some(d)).any(|a| f.kind == dates::Kind::Deliverable || dates::same_item(&f.label, f.kind, &a.name));
-            if in_canvas {
-                continue;
-            }
-            // Same day, same kind already pinned (by you or the scanner).
-            if s.data.prefs.pinned.iter().any(|p| p.course_id == cid && p.date == f.date && p.kind == kind) {
-                continue;
-            }
-            // "Quiz 2 moved to Friday": move the pin rather than adding a second one.
-            if moved {
-                if let Some(p) = s.data.prefs.pinned.iter_mut().find(|p| p.auto && p.course_id == cid && p.kind == kind && p.date != f.date && dates::same_item(&p.label, f.kind, &f.label)) {
-                    p.date = f.date.clone();
-                    p.time = f.time.clone().or(p.time.take());
-                    p.source = format!("Announcement: {} (moved)", an.title);
-                    touched.push(p.clone());
-                    continue;
-                }
-            }
-            let pin = PinnedDate {
-                id: f.id.clone(),
-                course_id: cid,
-                date: f.date.clone(),
-                time: f.time.clone(),
-                label: f.label.chars().take(120).collect(),
-                kind,
-                weight: f.weight.clone(),
-                source: format!("Announcement: {}", an.title.chars().take(100).collect::<String>()),
-                auto: true,
-                url: an.html_url.clone(),
-            };
-            s.data.prefs.pinned.push(pin.clone());
-            touched.push(pin);
-        }
-    }
-    if !touched.is_empty() {
-        s.data.prefs.pinned.sort_by(|a, b| (a.date.as_str(), a.time.as_deref()).cmp(&(b.date.as_str(), b.time.as_deref())));
-    }
-    touched
 }

@@ -36,7 +36,7 @@ const STEPS: Step[] = [
     body: (
       <>
         <p>Every deadline gets warmer as it gets closer: blue for later, then amber, orange and red, with a countdown inside 24 hours.</p>
-        <p>The bars show your workload for the next 14 days. Click a day to jump to it.</p>
+        <p>The bars show hours of work due each day for the next 14 days, with a warning when too much lands at once. Click a day to jump to it.</p>
       </>
     ),
     route: { view: "today" },
@@ -59,8 +59,23 @@ const STEPS: Step[] = [
     target: [".course-item"],
   },
   {
+    title: "Your work, ticked off",
+    body: (
+      <>
+        <p>Each assignment gets a requirements checklist pulled from its instructions, a rubric self-check, your hours estimate and notes. If something isn't ticked when you submit, Studydesk asks first.</p>
+        <p className="muted">Notes are saved encrypted on this PC and searchable with Ctrl K.</p>
+      </>
+    ),
+    target: [".course-item"],
+  },
+  {
+    title: "Grades, worked out",
+    body: <p>See every course's grade calculated like Canvas does (weights, dropped marks), the range you can still finish in, and exactly what you need on the final to hit your target. Unreleased grades are never counted as 0.</p>,
+    target: ['.sidebar [aria-label="Grades"]'],
+  },
+  {
     title: "Key dates from your outlines",
-    body: <p>Studydesk reads each course's calendar, syllabus and outline files to find exams, quizzes and due dates. Pin the ones that matter and they appear on Today with reminders.</p>,
+    body: <p>Studydesk reads each course's calendar, syllabus, outline files and announcements to find exams, quizzes, due dates and office hours. Dates from announcements are added for you (with Undo); pin the rest and they appear on Today with reminders.</p>,
     target: ['.sidebar [aria-label="Key dates"]'],
   },
   {
@@ -84,14 +99,14 @@ const STEPS: Step[] = [
     title: "Find anything",
     body: (
       <p>
-        Press <K>Ctrl</K> <K>K</K> to jump to any course, assignment or page. <K>Alt</K> + <K>1</K>–<K>5</K> switch views, <K>F5</K> refreshes.
+        Press <K>Ctrl</K> <K>K</K> to jump to any course, assignment, page or note. <K>Alt</K> + <K>1</K>–<K>6</K> switch views, <K>F5</K> refreshes, <K>Ctrl</K> <K>+</K> makes text bigger.
       </p>
     ),
     target: [".sidebar .jump"],
   },
   {
     title: "Make it yours",
-    body: <p>In Settings: light or dark theme, accent colour, your own course colours, Windows reminders 24 h and 2 h before deadlines, and start with Windows.</p>,
+    body: <p>In Settings: text size, compact or comfortable layout, light or dark theme, accent and course colours, Windows reminders (including a nudge to start big work early), and start with Windows.</p>,
     target: ['.sidebar [aria-label="Settings"]'],
   },
   {

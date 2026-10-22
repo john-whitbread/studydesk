@@ -164,7 +164,7 @@ export function Mail({ threadId }: { threadId?: string }) {
           <div className="sub">{gmail.email} · ↑ ↓ move · E archive · U unread · S star · R reply · C new · / search</div>
         </div>
         <div className="actions">
-          <button className="icon-btn" onClick={load} title="Refresh">
+          <button className="icon-btn" onClick={load} title="Refresh" aria-label="Refresh">
             <RefreshCw size={15} />
           </button>
           <button className="btn btn-primary" onClick={() => setState({ mailCompose: {} })}>
@@ -360,13 +360,13 @@ function MailThread({
         <button className={`icon-btn${t.starred ? " on" : ""}`} onClick={() => act.star(t)} title="Star (S)">
           <Star size={16} fill={t.starred ? "currentColor" : "none"} />
         </button>
-        <button className="icon-btn" onClick={() => act.unread(t)} title="Mark unread (U)">
+        <button className="icon-btn" onClick={() => act.unread(t)} title="Mark unread (U)" aria-label="Mark unread (U)">
           <MailOpen size={16} />
         </button>
-        <button className="icon-btn" onClick={() => act.archive(t)} title={t.inInbox ? "Archive (E)" : "Move to inbox (E)"}>
+        <button className="icon-btn" onClick={() => act.archive(t)} title={t.inInbox ? "Archive (E)" : "Move to inbox (E)"} aria-label={t.inInbox ? "Archive (E)" : "Move to inbox (E)"}>
           {t.inInbox ? <Archive size={16} /> : <InboxIcon size={16} />}
         </button>
-        <button className="icon-btn" title="Open in Gmail" onClick={() => api.openExternal(`https://mail.google.com/mail/u/?authuser=${encodeURIComponent(me)}#all/${t.id}`).catch((e) => reportError(e))}>
+        <button className="icon-btn" title="Open in Gmail" aria-label="Open in Gmail" onClick={() => api.openExternal(`https://mail.google.com/mail/u/?authuser=${encodeURIComponent(me)}#all/${t.id}`).catch((e) => reportError(e))}>
           <ExternalLink size={16} />
         </button>
       </div>

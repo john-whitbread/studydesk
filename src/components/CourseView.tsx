@@ -52,8 +52,8 @@ export function CourseView({ courseId, assignmentId, tab = "work" }: { courseId:
   const list = useMemo(() => items(dash, now, courseId), [dash, now, courseId]);
   const selected = list.find((i) => i.a.id === assignmentId)?.a ?? null;
   const anns = useMemo(
-    () => (dash?.announcements ?? []).filter((a) => a.context_code === `course_${courseId}`).slice(0, 8),
-    [dash, courseId],
+    () => (dash?.announcements ?? []).filter((a) => a.context_code === `course_${courseId}` && now - (parse(a.posted_at) ?? 0) < 21 * 86_400_000).slice(0, 8),
+    [dash, courseId, now],
   );
 
   if (!dash) return null;

@@ -262,7 +262,8 @@ pub struct Diagnostics {
     pinned: usize,
     office_hours: usize,
     work_items: usize,
-    last_calendar_update: Option<crate::cmd_calendar::PushReport>,
+    /// Counts and whether it failed; the error text itself can name calendars, so it's left out.
+    last_calendar_update: Option<serde_json::Value>,
 }
 
 /// Facts about this install, never secrets: no tokens, passwords, links, emails or file names.
@@ -288,7 +289,13 @@ pub async fn diagnostics_info(app: AppHandle, state: State<'_, AppState>) -> Res
         pinned: d.map_or(0, |d| d.prefs.pinned.len()),
         office_hours: d.map_or(0, |d| d.prefs.office_hours.len()),
         work_items: d.map_or(0, |d| d.work.len()),
-        last_calendar_update: state.cal_report.lock().unwrap().clone(),
+        last_calendar_update: state.cal_report.lock().unwrap().as_ref().and_then(|r| serde_json::to_value(r).ok()).map(|mut v| {
+            if let Some(o) = v.as_object_mut() {
+                let failed = o.get("error").is_some_and(|e| !e.is_null());
+                o.insert("error".into(), serde_json::Value::Bool(failed));
+            }
+            v
+        }),
     })
 }
 

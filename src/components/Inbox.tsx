@@ -149,7 +149,7 @@ export function Inbox({ conversationId }: { conversationId?: number }) {
           <div className="sub">Canvas conversations · ↑ ↓ to move · E archive · U unread · S star · R reply · C new</div>
         </div>
         <div className="actions">
-          <button className="icon-btn" onClick={load} title="Refresh">
+          <button className="icon-btn" onClick={load} title="Refresh" aria-label="Refresh">
             <RefreshCw size={15} />
           </button>
           <button className="btn btn-primary" onClick={() => setState({ compose: { courseId: courseFilter ?? undefined } })}>
@@ -330,10 +330,10 @@ function Thread({
         <button className={`icon-btn${c.starred ? " on" : ""}`} onClick={() => actions.star(c)} title="Star (S)">
           <Star size={16} fill={c.starred ? "currentColor" : "none"} />
         </button>
-        <button className="icon-btn" onClick={() => actions.unread(c)} title="Mark unread (U)">
+        <button className="icon-btn" onClick={() => actions.unread(c)} title="Mark unread (U)" aria-label="Mark unread (U)">
           <MailOpen size={16} />
         </button>
-        <button className="icon-btn" onClick={() => actions.archive(c)} title={c.workflow_state === "archived" ? "Move to inbox (E)" : "Archive (E)"}>
+        <button className="icon-btn" onClick={() => actions.archive(c)} title={c.workflow_state === "archived" ? "Move to inbox (E)" : "Archive (E)"} aria-label={c.workflow_state === "archived" ? "Move to inbox (E)" : "Archive (E)"}>
           <Archive size={16} />
         </button>
       </div>

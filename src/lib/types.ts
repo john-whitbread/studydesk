@@ -248,5 +248,5 @@ export interface Module { id: number; name: string; position?: number | null; un
 export interface CourseModules { courseId: number; modules: Module[]; note: string | null }
 export interface Diagnostics {
   version: string; os: string; arch: string; unlocked: boolean; passphrase: boolean; canvasHost: string | null; coursesHidden: number; foldersLinked: number; foldersMissing: number;
-  gmail: boolean; apple: boolean; applePush: boolean; calendarLinks: number; pinned: number; officeHours: number; workItems: number; lastCalendarUpdate: PushReport | null;
+  gmail: boolean; apple: boolean; applePush: boolean; calendarLinks: number; pinned: number; officeHours: number; workItems: number; lastCalendarUpdate: { at: number; written: number; removed: number; failed: number; error: boolean } | null;
 }

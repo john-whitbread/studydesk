@@ -1003,3 +1003,18 @@ li:hover > .hover-only, li:focus-within > .hover-only, .hover-only:focus-visible
 .est-table td:first-child { min-width: 150px; }
 .diag { max-height: 260px; overflow: auto; margin: 0; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--panel-2); border: 1px solid var(--border); font: 11.5px/1.45 var(--mono); white-space: pre-wrap; word-break: break-word; }
 .gr-num > * { white-space: nowrap; }
+
+/* ------------------------------------------------- Windows high contrast */
+@media (forced-colors: active) {
+  .chip, .kind-chip, .count, .count-pill, .seg button.active, .stat, .notice, .collision, .need, .need-card, .mywork { border: 1px solid CanvasText; }
+  .seg button.active { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  .lrow.selected, .nav-item.active { outline: 2px solid Highlight; outline-offset: -2px; }
+  .lrow[class*="heat-"], .nextup { box-shadow: none; border-left: 4px solid CanvasText; }
+  .progress, .mini-bar, .gg-bar, .rb-track, .strip .bar-wrap { forced-color-adjust: none; background: Canvas; border: 1px solid CanvasText; }
+  .progress > div, .mini-bar > div, .gg-bar > span, .rb-range, .strip .bar, .strip .day .bar { forced-color-adjust: none; background: Highlight !important; }
+  .rb-now { forced-color-adjust: none; background: CanvasText; box-shadow: none; }
+  .rb-target { border-left-color: CanvasText; }
+  .dot, .heat-dot, .cal-swatch { forced-color-adjust: none; border: 1px solid CanvasText; }
+  .checklist li.done > label { text-decoration-color: CanvasText; }
+  :focus-visible { outline: 3px solid Highlight; }
+}

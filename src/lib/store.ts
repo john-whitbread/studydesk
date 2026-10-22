@@ -171,7 +171,12 @@ export function back() {
 export const errorLog: { at: number; text: string }[] = [];
 export function logError(text: string) {
   // Never keep anything that looks like a secret or a link.
-  const clean = text.replace(/https?:\/\/\S+/g, "[link]").replace(/[A-Za-z0-9~_\-.]{24,}/g, "[…]").slice(0, 300);
+  const clean = text
+    .replace(/https?:\/\/\S+/g, "[link]")
+    .replace(/[^\s@<>()"']+@[^\s@<>()"']+\.[a-z]{2,}/gi, "[email]")
+    .replace(/[A-Za-z]:\\[^\s"']+/g, "[path]")
+    .replace(/[A-Za-z0-9~_\-.]{24,}/g, "[…]")
+    .slice(0, 300);
   errorLog.push({ at: Date.now(), text: clean });
   if (errorLog.length > 30) errorLog.shift();
 }

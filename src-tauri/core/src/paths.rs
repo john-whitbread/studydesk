@@ -150,7 +150,7 @@ pub fn recent_files(root: &Path, allowed_ext: &[String], limit: usize) -> Result
             files.push(Entry { rel: rel_of(&root_c, &path), is_dir: false, size: meta.len(), modified_ms: modified_ms(&meta), ext, name });
         }
     }
-    files.sort_by(|a, b| b.modified_ms.cmp(&a.modified_ms));
+    files.sort_by_key(|f| std::cmp::Reverse(f.modified_ms));
     files.truncate(limit);
     Ok(files)
 }

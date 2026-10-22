@@ -118,7 +118,7 @@ export function DiagnosticsSettings() {
       const lines = [
         "Studydesk diagnostics",
         `Made: ${new Date().toISOString()}`,
-        "This report has no passwords, tokens, email addresses, file names or course content.",
+        "No passwords, tokens, email addresses, links or notes. Error messages may name an assignment or file.",
         "",
         ...Object.entries(d).map(([k, v]) => `${k}: ${typeof v === "object" && v ? JSON.stringify(v) : String(v)}`),
         "",
@@ -149,7 +149,7 @@ export function DiagnosticsSettings() {
         <div className="k">Diagnostics report</div>
         <div className="stack" style={{ gap: 8 }}>
           <div className="small muted">
-            If something isn't working, this report helps whoever is helping you. It lists the app version, Windows version, what's connected and recent error messages. It never includes passwords, tokens, emails, file names or course content, and you can read every line before saving it.
+            If something isn't working, this report helps whoever is helping you. It lists the app version, Windows version, what's connected (yes or no) and this session's error messages. It never includes passwords, tokens, email addresses, links or notes. Error messages can mention an assignment or file name, so read it before you share it.
           </div>
           <div className="row-flex" style={{ flexWrap: "wrap" }}>
             <button className="btn btn-sm" onClick={build} disabled={busy}>

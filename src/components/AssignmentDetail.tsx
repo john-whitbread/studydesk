@@ -2,7 +2,7 @@ import { ExternalLink, MessageSquare, Paperclip, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api.ts";
 import { acceptsOnline, assignmentStatus, scoreLabel, typeLabel } from "../lib/status.ts";
-import { reportError, setState, sync } from "../lib/store.ts";
+import { reportError, setState, sync, useStore } from "../lib/store.ts";
 import { fmtDateTime, fmtNum, fmtSize, parse, relative } from "../lib/time.ts";
 import type { Assignment, AssignmentDetail as Detail, Course, RubricMark, Submission } from "../lib/types.ts";
 import { Html, Linkified, Notice, Spinner, StatusChip } from "./common.tsx";
@@ -44,6 +44,8 @@ export function AssignmentDetail({ base, course, now, onClose }: { base: Assignm
   const score = scoreLabel(a);
   const comments = sub?.submission_comments ?? [];
   const rubricMarks = (sub?.rubric_assessment ?? {}) as Record<string, RubricMark>;
+  const self = useStore((st) => st.work[`${base.course_id}:${base.id}`]?.rubric);
+  const hasSelf = !!self && a.rubric.some((r) => self[r.id]?.score != null);
 
   return (
     <div className="panel">
@@ -176,9 +178,10 @@ export function AssignmentDetail({ base, course, now, onClose }: { base: Assignm
             </section>
           )}
 
-          {(comments.length > 0 || a.rubric.length > 0) && (
+          {/* Before grading, the rubric lives in My work as a self-check; here it's feedback. */}
+          {(comments.length > 0 || Object.keys(rubricMarks).length > 0) && (
             <section className="stack" style={{ gap: 8 }}>
-              <div className="section-title" style={{ marginBottom: 0 }}>{comments.length || Object.keys(rubricMarks).length ? "Feedback" : "Rubric"}</div>
+              <div className="section-title" style={{ marginBottom: 0 }}>Feedback</div>
               {comments.map((c) => (
                 <div key={c.id} className="comment">
                   <div className="who">
@@ -190,11 +193,12 @@ export function AssignmentDetail({ base, course, now, onClose }: { base: Assignm
                   </div>
                 </div>
               ))}
-              {a.rubric.length > 0 && (
+              {a.rubric.length > 0 && Object.keys(rubricMarks).length > 0 && (
                 <table className="rubric">
                   <thead>
                     <tr>
                       <th>Criterion</th>
+                      {hasSelf && <th style={{ textAlign: "right" }} title="What you gave yourself in the self-check">You said</th>}
                       <th style={{ textAlign: "right" }}>Points</th>
                     </tr>
                   </thead>
@@ -209,6 +213,7 @@ export function AssignmentDetail({ base, course, now, onClose }: { base: Assignm
                             {rating?.description && <div className="small dim">{rating.description}</div>}
                             {m?.comments && <div className="small muted">{m.comments}</div>}
                           </td>
+                          {hasSelf && <td className="pts muted">{self?.[r.id]?.score != null ? fmtNum(self[r.id].score as number) : "–"}</td>}
                           <td className="pts">
                             {m?.points != null ? <b>{fmtNum(m.points)}</b> : <span className="muted">–</span>}
                             <span className="muted"> / {fmtNum(r.points ?? 0)}</span>

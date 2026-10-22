@@ -392,7 +392,7 @@ export function Today() {
     [all, now],
   );
   const courseOfCode = (code?: string | null) => dash?.courses.find((c) => `course_${c.id}` === code);
-  const anns = (dash?.announcements ?? []).filter((a) => !courseOfCode(a.context_code)?.hidden).slice(0, 6);
+  const anns = (dash?.announcements ?? []).filter((a) => !courseOfCode(a.context_code)?.hidden && now - (parse(a.posted_at) ?? 0) < 21 * DAY).slice(0, 6);
   const keyDates = all.filter((e): e is Extract<Entry, { type: "pin" }> => e.type === "pin" && entryNeedsAction(e, now)).sort((a, b) => a.due - b.due).slice(0, 5);
 
   const jumpTo = (k: string) => {
