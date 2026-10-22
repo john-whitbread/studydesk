@@ -75,7 +75,7 @@ export function counts(a: Assignment): boolean {
 }
 
 /** Released but hidden: graded in Canvas, score withheld from students. */
-function isHidden(a: Assignment): boolean {
+export function isHidden(a: Assignment): boolean {
   const s = a.submission;
   return !!s && s.workflow_state === "graded" && s.score == null && !s.grade && !s.excused;
 }
@@ -250,4 +250,27 @@ export function worth(a: Assignment, assignments: Assignment[], groups: Group[],
   }
   const total = assignments.filter(counts).reduce((s, x) => s + Math.max(0, x.points_possible ?? 0), 0);
   return total > 0 ? (a.points_possible / total) * 100 : null;
+}
+
+/** Assignments still to be graded that count (what "remaining" means everywhere). */
+export function remaining(assignments: Assignment[], whatIf: WhatIf = new Map()): Assignment[] {
+  return assignments.filter((a) => counts(a) && a.submission?.score == null && !whatIf.has(a.id) && !isHidden(a) && (a.points_possible ?? 0) > 0);
+}
+
+/** Lowest (everything left = 0) and highest (everything left = full marks) possible grade. */
+export function gradeRange(assignments: Assignment[], groups: Group[], weighted: boolean, whatIf: WhatIf = new Map()): { min: number | null; max: number | null } {
+  const min = courseGrade(assignments, groups, weighted, whatIf, true).percent;
+  const full = new Map(whatIf);
+  for (const a of remaining(assignments, whatIf)) full.set(a.id, a.points_possible ?? 0);
+  const max = courseGrade(assignments, groups, weighted, full, true).percent;
+  return { min, max };
+}
+
+/** Ontario Tech letter grades (lower bound, letter). */
+export const LETTERS: [number, string][] = [
+  [90, "A+"], [85, "A"], [80, "A-"], [77, "B+"], [73, "B"], [70, "B-"], [67, "C+"], [60, "C"], [50, "D"], [0, "F"],
+];
+export function letterOf(p: number | null): string | null {
+  if (p == null) return null;
+  return LETTERS.find(([lo]) => p >= lo - 1e-9)?.[1] ?? "F";
 }

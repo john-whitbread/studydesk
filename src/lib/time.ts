@@ -115,3 +115,9 @@ export function fmtSize(bytes: number): string {
 export function fmtNum(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
 }
+
+/** "Today 2:00 PM", "Tomorrow 9:00 AM", "Saturday 10:00 AM" (this week), else "Tue, Oct 20, 11:59 PM". */
+export function fmtWhen(t: number, now = Date.now()): string {
+  const d = calendarDays(now, t);
+  return d >= -1 && d < 7 ? `${dayLabel(t, now)} ${fmtTime(t)}` : fmtDateTime(t, now);
+}

@@ -3,17 +3,20 @@
 import { useSyncExternalStore } from "react";
 import { api } from "./api.ts";
 import { applyAppearance } from "./appearance.ts";
-import type { ApiError, Appearance, Dashboard, PickedFile, PinnedDate, Profile, ScanResult, UploadProgress } from "./types.ts";
+import type { ApiError, Appearance, AssignmentGroup, Change, CourseModules, Dashboard, OfficeHours, PickedFile, PinnedDate, Profile, ScanResult, UploadProgress, WorkItem, WorkPrefs } from "./types.ts";
 import { setCourseColorOverrides, tidyCourse } from "./util.ts";
 
 export type Route =
   | { view: "today" }
-  | { view: "course"; courseId: number; assignmentId?: number }
+  | { view: "course"; courseId: number; assignmentId?: number; tab?: CourseTab }
+  | { view: "grades" }
   | { view: "inbox"; conversationId?: number }
   | { view: "mail"; threadId?: string }
   | { view: "settings" }
   | { view: "dates" }
   | { view: "calendar"; date?: number };
+
+export type CourseTab = "work" | "grades" | "modules";
 
 export interface Toast {
   id: number;
@@ -77,6 +80,13 @@ export interface State {
   drag: DragState | null;
   /** Files staged for submission, keyed "courseId:assignmentId". */
   drafts: Record<string, PickedFile[]>;
+  /** My work (checklists, notes, hours), keyed "courseId:assignmentId". */
+  work: Record<string, WorkItem>;
+  workPrefs: WorkPrefs | null;
+  officeHours: OfficeHours[];
+  /** Assignment groups per course (grade weights and drop rules). */
+  groups: Record<number, AssignmentGroup[]>;
+  modules: Record<number, CourseModules>;
 }
 
 const initial: State = {
@@ -106,6 +116,11 @@ const initial: State = {
   progress: {},
   drag: null,
   drafts: {},
+  work: {},
+  workPrefs: null,
+  officeHours: [],
+  groups: {},
+  modules: {},
 };
 
 let state: State = initial;
@@ -152,6 +167,15 @@ export function back() {
   setState((s) => (s.history.length ? { route: s.history[s.history.length - 1], history: s.history.slice(0, -1) } : {}));
 }
 
+/** Recent errors (kept in memory only) for the diagnostics report. */
+export const errorLog: { at: number; text: string }[] = [];
+export function logError(text: string) {
+  // Never keep anything that looks like a secret or a link.
+  const clean = text.replace(/https?:\/\/\S+/g, "[link]").replace(/[A-Za-z0-9~_\-.]{24,}/g, "[…]").slice(0, 300);
+  errorLog.push({ at: Date.now(), text: clean });
+  if (errorLog.length > 30) errorLog.shift();
+}
+
 /** Central error handling: locked -> lock screen; bad token -> say so. */
 export function reportError(e: unknown, prefix?: string) {
   const err = e as ApiError;
@@ -161,11 +185,13 @@ export function reportError(e: unknown, prefix?: string) {
   }
   if (err?.kind === "cancelled") return;
   const text = prefix ? `${prefix}: ${err?.message ?? String(e)}` : err?.message ?? String(e);
+  logError(text);
   toast(text, "error", err?.kind === "unauthorized" ? { action: { label: "Settings", run: () => navigate({ view: "settings" }) } } : {});
 }
 
 export function onLocked() {
   // Drop everything that came from Canvas.
+  workLoaded = false;
   state = { ...initial, phase: "locked", hasPassphrase: true, toasts: [] };
   subs.forEach((f) => f());
 }
@@ -234,11 +260,17 @@ export function sync(): Promise<void> {
       dash.courses = dash.courses.map(tidyCourse);
       setState({ dash, unread: dash.unreadCount, syncError: null });
       api.datesPinned().then((pinned) => setState({ pinned })).catch(() => {});
+      if (dash.autoPinned?.length) announceAutoPins(dash.autoPinned);
+      void loadWorkData();
+      // Grade groups are needed for grades and "worth"; cheap, one call per course.
+      const ids = dash.courses.filter((c) => !c.hidden).map((c) => c.id);
+      api.gradeGroups(ids).then((gs) => setState((s) => ({ groups: { ...s.groups, ...Object.fromEntries(gs.map((g) => [g.courseId, g.groups])) } }))).catch(() => {});
       void refreshGmail();
     } catch (e) {
       const err = e as ApiError;
       if (err.kind === "locked") onLocked();
       else {
+        logError(`Refresh: ${err.message}`);
         setState({ syncError: err.message });
         if (err.kind === "unauthorized") reportError(e);
       }
@@ -325,4 +357,103 @@ export async function setCourseHidden(courseId: number, hidden: boolean) {
     flip(!hidden);
     reportError(e);
   }
+}
+
+// ----------------------------------------------------------------- my work
+
+let workLoaded = false;
+/** Loads my work, prefs and office hours once per unlock (later edits are local + saved). */
+export async function loadWorkData(force = false) {
+  if (workLoaded && !force) return;
+  workLoaded = true;
+  try {
+    const [work, workPrefs, officeHours] = await Promise.all([api.workAll(), api.workPrefs(), api.officeHoursList()]);
+    setState({ work, workPrefs, officeHours });
+  } catch {
+    workLoaded = false;
+  }
+}
+
+const workTimers = new Map<string, ReturnType<typeof setTimeout>>();
+/** Updates one work item now, saves it shortly after (typing doesn't hammer the vault). */
+export function putWork(key: string, item: WorkItem, delay = 600) {
+  const it = { ...item, updated: Date.now() };
+  setState((s) => ({ work: { ...s.work, [key]: it } }));
+  const t = workTimers.get(key);
+  if (t) clearTimeout(t);
+  workTimers.set(
+    key,
+    setTimeout(() => {
+      workTimers.delete(key);
+      api.workPut(key, getState().work[key] ?? it).catch((e) => reportError(e, "Couldn't save your work"));
+    }, delay),
+  );
+}
+/** Saves anything still waiting (before submitting or leaving). */
+export function flushWork() {
+  for (const [key, t] of workTimers) {
+    clearTimeout(t);
+    workTimers.delete(key);
+    const it = getState().work[key];
+    if (it) api.workPut(key, it).catch(() => {});
+  }
+}
+
+export async function setWorkPrefs(autoDates: boolean | null, estimates: Record<string, number> | null) {
+  try {
+    setState({ workPrefs: await api.setWorkPrefs(autoDates, estimates) });
+  } catch (e) {
+    reportError(e);
+  }
+}
+
+export async function saveOfficeHours(item: OfficeHours) {
+  try {
+    setState({ officeHours: await api.officeHoursSave(item) });
+    return true;
+  } catch (e) {
+    reportError(e, "Couldn't save office hours");
+    return false;
+  }
+}
+export async function removeOfficeHours(id: string) {
+  try {
+    setState({ officeHours: await api.officeHoursRemove(id) });
+  } catch (e) {
+    reportError(e);
+  }
+}
+
+/** Marks changes seen (none given = all). */
+export async function markChangesSeen(ids: string[] = []) {
+  const all = ids.length === 0;
+  setState((s) => (s.dash ? { dash: { ...s.dash, changes: (s.dash.changes ?? []).map((c: Change) => (all || ids.includes(c.id) ? { ...c, seen: true } : c)) } } : {}));
+  try {
+    await api.changesSeen(ids);
+  } catch {
+    /* only a badge */
+  }
+}
+
+export async function loadModules(courseIds: number[], force = false) {
+  const need = force ? courseIds : courseIds.filter((id) => !getState().modules[id]);
+  if (!need.length) return;
+  const got = await api.modulesFor(need);
+  setState((s) => ({ modules: { ...s.modules, ...Object.fromEntries(got.map((m) => [m.courseId, m])) } }));
+}
+
+function announceAutoPins(pins: PinnedDate[]) {
+  const n = pins.length;
+  const first = pins[0];
+  const text = n === 1 ? `Added from an announcement: ${first.label} (${first.date})` : `Added ${n} dates from announcements`;
+  toast(text, "info", {
+    timeout: 9000,
+    action: {
+      label: "Undo",
+      run: async () => {
+        for (const p of pins) await api.datesUnpin(p.id).catch(() => {});
+        api.datesPinned().then((pinned) => setState({ pinned })).catch(() => {});
+      },
+    },
+  });
 }

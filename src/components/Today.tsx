@@ -1,4 +1,4 @@
-import { CalendarClock, FolderOpen, List, Megaphone, MessageSquare, Orbit, ScanSearch, Target } from "lucide-react";
+import { BookOpen, CalendarClock, Check, FolderOpen, List, Megaphone, MessageSquare, Orbit, ScanSearch, Target, TriangleAlert, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api.ts";
 import { DAY, type Item } from "../lib/derive.ts";
@@ -6,8 +6,13 @@ import { dropClass } from "../lib/drag.ts";
 import { entries, entryNeedsAction, KIND_LABEL, type Entry } from "../lib/entries.ts";
 import { heatOf, HEAT_LABEL, HEAT_RANK, type Heat } from "../lib/heat.ts";
 import { acceptsUpload, kindLabel } from "../lib/status.ts";
-import { navigate, reportError, runScan, setState, useStore } from "../lib/store.ts";
-import { dayKey, dayLabel, fmtDay, fmtFullDate, fmtListTime, fmtNum, fmtTime, parse, relative } from "../lib/time.ts";
+import { loadModules, navigate, reportError, runScan, setState, useStore } from "../lib/store.ts";
+import { defaultHours, fmtHours, hoursFor } from "../lib/effort.ts";
+import { collisions, loadByDay, type LoadItem } from "../lib/workload.ts";
+import { fmtHm, ohSlots } from "../lib/officehours.ts";
+import { ChangeChip, useUnseenChanges, WhatChanged } from "./Changes.tsx";
+import { isReading, markItem, openItem } from "./Modules.tsx";
+import { dayKey, dayLabel, fmtDay, fmtFullDate, fmtListTime, fmtNum, fmtTime, fmtWhen, parse, relative } from "../lib/time.ts";
 import type { Conversation, PinnedDate } from "../lib/types.ts";
 import { htmlToText } from "../lib/sanitize.ts";
 import { courseColor, plural } from "../lib/util.ts";
@@ -27,6 +32,11 @@ function DueCell({ due, heat, now }: { due: number; heat: Heat; now: number }) {
 
 export function DueRow({ it, now, showCourse = true }: { it: Item; now: number; showCourse?: boolean }) {
   const drag = useStore((s) => s.drag);
+  const mine = useStore((s) => s.work[`${it.a.course_id}:${it.a.id}`]);
+  const estimates = useStore((s) => s.workPrefs?.estimates);
+  const changed = useUnseenChanges().get(it.a.id);
+  const hrs = it.s.needsAction && (it.a.points_possible ?? 0) > 0 ? hoursFor(it.a, mine?.hours, estimates ?? {}) : null;
+  const ticks = mine?.checklist.length ? `${mine.checklist.filter((c) => c.done).length}/${mine.checklist.length}` : null;
   const key = `asg:${it.a.course_id}:${it.a.id}`;
   const k = kindLabel(it.a);
   const heat = heatOf(it.due, now, it.s.needsAction, it.s.late);
@@ -39,7 +49,10 @@ export function DueRow({ it, now, showCourse = true }: { it: Item; now: number; 
     >
       <StatusChip s={it.s} />
       <div style={{ minWidth: 0 }}>
-        <div className="lr-title ellipsis">{it.a.name}</div>
+        <div className="lr-title ellipsis">
+          {it.a.name}
+          {changed && <ChangeChip c={changed} />}
+        </div>
         <div className="lr-meta">
           {showCourse && it.course && (
             <span className="tag">
@@ -49,6 +62,8 @@ export function DueRow({ it, now, showCourse = true }: { it: Item; now: number; 
           )}
           {it.a.points_possible != null && it.a.points_possible > 0 && <span>{fmtNum(it.a.points_possible)} pts</span>}
           {k && <span>{k}</span>}
+          {hrs && <span title={hrs.custom ? "Your estimate" : "Typical time for this kind of work. Set your own on the assignment."}>≈ {fmtHours(hrs.hours)}</span>}
+          {ticks && it.s.needsAction && <span title="Requirements ticked">✓ {ticks}</span>}
         </div>
       </div>
       {it.due != null ? <DueCell due={it.due} heat={heat} now={now} /> : <div className="lr-due muted">No due date</div>}
@@ -145,36 +160,162 @@ function NextUp({ list, now }: { list: Entry[]; now: number }) {
   );
 }
 
-/** 14 days of workload: bar height = points still to do; ! = exam or quiz. */
-function Workload({ list, now, onPick }: { list: Entry[]; now: number; onPick: (key: string) => void }) {
-  const days = Array.from({ length: 14 }, (_, i) => new Date(new Date(now).setHours(0, 0, 0, 0) + i * DAY + 3600_000).setHours(0, 0, 0, 0));
-  const data = days.map((d) => {
-    const k = dayKey(d);
-    const es = list.filter((e) => e.due != null && dayKey(e.due) === k && entryNeedsAction(e, now));
-    const pts = es.reduce((s, e) => s + (e.type === "asg" ? e.it.a.points_possible || 5 : e.p.kind === "exam" ? 30 : e.p.kind === "quiz" ? 10 : 5), 0);
-    const exam = es.some((e) => e.type === "pin" && (e.p.kind === "exam" || e.p.kind === "quiz"));
-    const heat = es.reduce<Heat>((h, e) => (HEAT_RANK[e.heat] > HEAT_RANK[h] ? e.heat : h), "none");
-    return { d, k, es, pts, exam, heat };
-  });
-  const max = Math.max(20, ...data.map((x) => x.pts));
+/** Open work as hours: your estimates, else typical hours for the kind of work. */
+export function useLoadItems(list: Entry[], now: number): LoadItem[] {
+  const work = useStore((s) => s.work);
+  const estimates = useStore((s) => s.workPrefs?.estimates) ?? {};
+  return useMemo(
+    () =>
+      list
+        .filter((e) => e.due != null && entryNeedsAction(e, now) && (e.type === "pin" ? e.p.kind !== "info" : (e.it.a.points_possible ?? 0) > 0))
+        .map((e) => {
+          if (e.type === "asg") {
+            const h = hoursFor(e.it.a, work[`${e.it.a.course_id}:${e.it.a.id}`]?.hours, estimates);
+            return { key: e.key, title: e.it.a.name, due: e.due as number, hours: h.hours, exam: h.kind === "exam", open: true };
+          }
+          const kind = e.p.kind === "exam" ? "exam" : e.p.kind === "quiz" ? "quiz" : "other";
+          return { key: e.key, title: e.p.label, due: e.due, hours: defaultHours(kind, estimates), exam: e.p.kind === "exam" || e.p.kind === "quiz", open: true };
+        }),
+    [list, now, work, estimates],
+  );
+}
+
+/** 14 days of workload: bar height = hours of work due that day; ! = exam or quiz. */
+function Workload({ list, load, now, onPick }: { list: Entry[]; load: LoadItem[]; now: number; onPick: (key: string) => void }) {
+  const days = useMemo(() => loadByDay(load, now, 14), [load, now]);
+  const warn = useMemo(() => collisions(days, load).filter((c) => c.day < now + 14 * DAY), [days, load, now]);
+  const max = Math.max(8, ...days.map((x) => x.hours));
+  const week = days.slice(0, 7).reduce((s, d) => s + d.hours, 0);
   return (
-    <div className="strip" role="list" aria-label="Workload, next 14 days">
-      {data.map((x, i) => (
-        <button
-          key={x.k}
-          role="listitem"
-          className={`day heat-${x.heat}${i === 0 ? " today" : ""}`}
-          onClick={() => onPick(x.k)}
-          title={x.es.length ? `${fmtDay(x.d, now)}\n${x.es.map((e) => `• ${e.type === "asg" ? e.it.a.name : `${KIND_LABEL[e.p.kind]}: ${e.p.label}`}`).join("\n")}` : `${fmtDay(x.d, now)}: nothing due`}
-        >
-          <div className="bar-wrap">
-            {x.exam && <span className="exam-mark">!</span>}
-            <div className="bar" style={{ height: `${Math.round((x.pts / max) * 100)}%` }} />
+    <>
+      <div className="strip-head small">
+        <span className="dim">
+          About <b>{fmtHours(Math.round(week))}</b> of work due in the next 7 days
+        </span>
+        <span className="strip-key muted">
+          <i className="lv lv-light" /> under 4 h <i className="lv lv-busy" /> 4–8 h <i className="lv lv-heavy" /> 8 h+ <b className="exam-key">!</b> exam or quiz
+        </span>
+      </div>
+      <div className="strip" role="list" aria-label="Hours of work due each day, next 14 days">
+        {days.map((x, i) => {
+          const k = dayKey(x.day);
+          const es = list.filter((e) => e.due != null && dayKey(e.due) === k && entryNeedsAction(e, now));
+          const exam = x.items.some((it) => it.exam);
+          const heat = es.reduce<Heat>((h, e) => (HEAT_RANK[e.heat] > HEAT_RANK[h] ? e.heat : h), "none");
+          const label = x.count ? `${fmtDay(x.day, now)}: about ${fmtHours(Math.round(x.hours * 2) / 2)} of work\n${x.items.map((it) => `• ${it.title} (≈ ${fmtHours(it.hours)})`).join("\n")}` : `${fmtDay(x.day, now)}: nothing due`;
+          return (
+            <button key={k} role="listitem" className={`day heat-${heat} lv-${x.level}${i === 0 ? " today" : ""}`} onClick={() => onPick(k)} title={label} aria-label={label}>
+              <span className="hrs num">{x.hours > 0 ? `${Math.round(x.hours)}h` : ""}</span>
+              <div className="bar-wrap">
+                {exam && <span className="exam-mark">!</span>}
+                <div className="bar" style={{ height: `${Math.round((x.hours / max) * 100)}%` }} />
+              </div>
+              <span className="lbl">{i === 0 ? "Today" : new Intl.DateTimeFormat(undefined, { weekday: "narrow" }).format(x.day) + " " + new Date(x.day).getDate()}</span>
+            </button>
+          );
+        })}
+      </div>
+      {warn.length > 0 && (
+        <div className="collisions" role="note">
+          {warn.slice(0, 3).map((c) => (
+            <button key={c.day} className="collision" onClick={() => onPick(dayKey(c.day))}>
+              <TriangleAlert size={13} />
+              <span>
+                <b>{dayLabel(c.day, now)}</b>: {c.text}. Start earlier in the week.
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Readings and pages your modules still want you to view or mark done. */
+function Readings({ now }: { now: number }) {
+  const dash = useStore((s) => s.dash);
+  const modules = useStore((s) => s.modules);
+  const ids = (dash?.courses ?? []).filter((c) => !c.hidden).map((c) => c.id);
+  const key = ids.join(",");
+  useEffect(() => {
+    if (ids.length) loadModules(ids).catch(() => {});
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const items = ids.flatMap((id) =>
+    (modules[id]?.modules ?? [])
+      .filter((m) => m.state !== "locked" && m.state !== "completed")
+      .flatMap((m) => m.items.filter(isReading).map((it) => ({ it, courseId: id, module: m.name }))),
+  );
+  if (!items.length) return null;
+  const byId = new Map((dash?.courses ?? []).map((c) => [c.id, c]));
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <BookOpen size={15} />
+        <h2>Readings to do</h2>
+        <span className="count-pill">{items.length}</span>
+      </div>
+      {items.slice(0, 6).map(({ it, courseId, module }) => {
+        const c = byId.get(courseId);
+        const due = parse(it.content_details?.due_at);
+        return (
+          <div key={`${courseId}:${it.id}`} className="mini-row reading">
+            <div className="top">
+              <button className="linkish t ellipsis" onClick={() => openItem(it)} title="Open in Canvas">
+                {it.title}
+              </button>
+              <button className="btn btn-xs" onClick={() => markItem(courseId, it)} title={it.completion_requirement?.type === "must_view" ? "Tell Canvas you've viewed it" : "Mark done in Canvas"}>
+                <Check size={12} /> {it.completion_requirement?.type === "must_view" ? "Viewed" : "Done"}
+              </button>
+            </div>
+            <div className="preview">
+              {c?.course_code || c?.name} · {module}
+              {due ? ` · due ${fmtWhen(due, now)}` : ""}
+            </div>
           </div>
-          <span className="lbl">{i === 0 ? "Today" : new Intl.DateTimeFormat(undefined, { weekday: "narrow" }).format(x.d) + " " + new Date(x.d).getDate()}</span>
+        );
+      })}
+      {items.length > 6 && (
+        <button className="mini-row" onClick={() => navigate({ view: "course", courseId: items[6].courseId, tab: "modules" })}>
+          <span className="small muted">and {items.length - 6} more in Modules</span>
         </button>
-      ))}
-    </div>
+      )}
+    </section>
+  );
+}
+
+/** Office hours you've confirmed, today and the next few days. */
+function OfficeHoursCard({ now }: { now: number }) {
+  const oh = useStore((s) => s.officeHours);
+  const dash = useStore((s) => s.dash);
+  const slots = useMemo(() => ohSlots(oh.filter((o) => !dash?.courses.find((c) => c.id === o.courseId)?.hidden), now, now + 7 * DAY).slice(0, 4), [oh, now, dash]);
+  if (!slots.length) return null;
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <Users size={15} />
+        <h2>Office hours</h2>
+        <div className="right">
+          <button className="btn btn-sm btn-ghost" onClick={() => navigate({ view: "dates" })}>
+            Edit
+          </button>
+        </div>
+      </div>
+      {slots.map((s) => {
+        const c = dash?.courses.find((x) => x.id === s.oh.courseId);
+        const live = s.start <= now && now < s.end;
+        return (
+          <div key={`${s.oh.id}:${s.start}`} className={`mini-row${live ? " unread" : ""}`}>
+            <div className="top">
+              <span className="t ellipsis">{c?.course_code || c?.name}</span>
+              <span className={`when${live ? " text-ok" : ""}`} style={live ? { fontWeight: 700 } : undefined}>
+                {live ? `Now, until ${fmtHm(s.oh.end)}` : `${fmtWhen(s.start, now)}–${fmtHm(s.oh.end)}`}
+              </span>
+            </div>
+            <div className="preview">{[s.oh.who, s.oh.location].filter(Boolean).join(" · ") || "Office hours"}</div>
+          </div>
+        );
+      })}
+    </section>
   );
 }
 
@@ -216,6 +357,7 @@ export function Today() {
   }, [unread]);
 
   const all = useMemo(() => entries(dash, pinned, now), [dash, pinned, now]);
+  const load = useLoadItems(all, now);
 
   const { overdue, groups, stats } = useMemo(() => {
     const withDue = all.filter((e) => e.due != null);
@@ -274,7 +416,7 @@ export function Today() {
           <div className={`stat${stats.today ? " warn" : ""}`}>
             <b>{stats.today}</b> due today
           </div>
-          <div className="stat">
+          <div className="stat" title="Hours are estimates: yours where you set one, otherwise typical for the kind of work">
             <b>{stats.week}</b> due in 7 days
           </div>
           <div className="stat" title="Unread Canvas messages">
@@ -310,7 +452,7 @@ export function Today() {
                 </div>
               </div>
             </div>
-            <Workload list={all} now={now} onPick={jumpTo} />
+            <Workload list={all} load={load} now={now} onPick={jumpTo} />
             {mode === "gravity" ? (
               <Gravity list={all} now={now} />
             ) : (
@@ -342,6 +484,9 @@ export function Today() {
           </section>
 
           <aside className="side-cards">
+            <WhatChanged now={now} />
+            <OfficeHoursCard now={now} />
+            <Readings now={now} />
             <section className="panel">
               <div className="panel-head">
                 <CalendarClock size={15} />

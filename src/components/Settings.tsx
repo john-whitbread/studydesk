@@ -1,4 +1,5 @@
 import { Download, FolderSearch, KeyRound, Link, Lock, RefreshCw, Unlink } from "lucide-react";
+import { DiagnosticsSettings, WorkSettings } from "./WorkSettings.tsx";
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.ts";
 import { lockNow, reportError, setCourseHidden, setState, sync, toast, useStore } from "../lib/store.ts";
@@ -30,7 +31,6 @@ export function Settings() {
     );
 
   const links = new Map(s.folderLinks.map((l) => [l.courseId, l]));
-  const hidden = new Set(s.hiddenCourses);
 
   return (
     <>
@@ -65,6 +65,7 @@ export function Settings() {
             <div className="panel-head">
               <h2>Courses and folders</h2>
             </div>
+            <NotCourses />
             <table className="ctable">
               <thead>
                 <tr>
@@ -125,10 +126,11 @@ export function Settings() {
                         <label className="check">
                           <input
                             type="checkbox"
-                            checked={!hidden.has(c.id)}
+                            checked={!c.hidden}
+                            aria-label={`Show ${c.course_code || c.name} in Studydesk`}
                             onChange={(e) => void setCourseHidden(c.id, !e.target.checked).then(reload)}
                           />
-                          <span className="small">Sidebar</span>
+                          <span className="small">{c.hidden ? "Hidden" : "Shown"}</span>
                         </label>
                       </td>
                     </tr>
@@ -138,7 +140,11 @@ export function Settings() {
             </table>
           </section>
 
+          <WorkSettings />
+
           <Updates />
+
+          <DiagnosticsSettings />
 
           <section className="panel">
             <div className="panel-head">
@@ -458,6 +464,44 @@ function PassphraseRow({ has, onChanged }: { has: boolean; onChanged: () => void
           </div>
         </form>
       )}
+    </div>
+  );
+}
+
+/** Canvas "courses" that are really info sites (orientation, integrity modules, clubs): offer to hide them. */
+const NOT_A_COURSE = /\b(orientation|academic integrity|integrity module|training|onboarding|community|resources?|hub|lounge|info(rmation)? (site|centre|center)|student life|sandbox|practice course|library|wellness|co-?op|career|club|society|program(me)? (site|page))\b/i;
+function NotCourses() {
+  const dash = useStore((s) => s.dash);
+  const [busy, setBusy] = useState(false);
+  const shown = (dash?.courses ?? []).filter((c) => !c.hidden);
+  const odd = shown.filter((c) => {
+    const n = `${c.full_name ?? c.name} ${c.course_code}`;
+    const work = dash?.assignments.filter((a) => a.course_id === c.id).length ?? 0;
+    return NOT_A_COURSE.test(n) || (work === 0 && !/\b[A-Z]{3,5}\s?\d{4}/.test(c.course_code));
+  });
+  if (!odd.length) return null;
+  return (
+    <div className="panel-body" style={{ borderBottom: "1px solid var(--border)" }}>
+      <Notice tone="info">
+        <div className="stack" style={{ gap: 6 }}>
+          <span>
+            {odd.length === 1 ? "This looks" : "These look"} like {odd.length === 1 ? "an info site" : "info sites"} rather than {odd.length === 1 ? "a class" : "classes"}: <b>{odd.map((c) => c.course_code || c.name).join(", ")}</b>. Hiding keeps your sidebar, Today and reminders to real courses. You can show {odd.length === 1 ? "it" : "them"} again any time.
+          </span>
+          <div>
+            <button
+              className="btn btn-sm"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                for (const c of odd) await setCourseHidden(c.id, true);
+                setBusy(false);
+              }}
+            >
+              Hide {odd.length === 1 ? "it" : `all ${odd.length}`}
+            </button>
+          </div>
+        </div>
+      </Notice>
     </div>
   );
 }

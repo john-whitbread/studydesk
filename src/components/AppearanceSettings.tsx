@@ -6,6 +6,18 @@ import { visibleCourses } from "../lib/derive.ts";
 import { applyLook, reportError, useStore } from "../lib/store.ts";
 import type { Course } from "../lib/types.ts";
 import { canvasColor, courseColor } from "../lib/util.ts";
+import { getDisplay, onDisplay, setDensity, setScale, SIZES } from "../lib/display.ts";
+
+function useDisplay() {
+  const [d, setD] = useState(getDisplay());
+  useEffect(() => {
+    const off = onDisplay(setD);
+    return () => {
+      off();
+    };
+  }, []);
+  return d;
+}
 
 const THEMES: [Theme, string, typeof Sun][] = [
   ["system", "System", Monitor],
@@ -29,6 +41,7 @@ export function AppearanceSettings() {
   const look = useStore((s) => s.look);
   const dash = useStore((s) => s.dash);
   const systemDark = useSystemDark();
+  const display = useDisplay();
   const [open, setOpen] = useState<number | null>(null);
   const timers = useRef(new Map<number, number>());
   useEffect(() => () => timers.current.forEach((t) => clearTimeout(t)), []);
@@ -71,6 +84,36 @@ export function AppearanceSettings() {
             ))}
           </div>
           <div className="small muted">{look.theme === "system" ? `Follows Windows (currently ${mode}).` : `Always ${mode}, whatever Windows uses.`}</div>
+        </div>
+      </div>
+
+      <div className="set-row">
+        <div className="k" id="ts-label">Text size</div>
+        <div className="stack" style={{ gap: 6 }}>
+          <div className="seg" role="radiogroup" aria-labelledby="ts-label" style={{ alignSelf: "flex-start" }}>
+            {SIZES.map((s) => (
+              <button key={s} role="radio" aria-checked={display.scale === s} className={display.scale === s ? "active" : ""} onClick={() => setScale(s)}>
+                {Math.round(s * 100)}%
+              </button>
+            ))}
+          </div>
+          <div className="small muted">
+            Makes everything bigger or smaller, on this computer. Shortcuts: <span className="kbd">Ctrl +</span> <span className="kbd">Ctrl −</span> and <span className="kbd">Ctrl 0</span> to reset.
+          </div>
+        </div>
+      </div>
+
+      <div className="set-row">
+        <div className="k" id="dn-label">Density</div>
+        <div className="stack" style={{ gap: 6 }}>
+          <div className="seg" role="radiogroup" aria-labelledby="dn-label" style={{ alignSelf: "flex-start" }}>
+            {(["comfortable", "compact"] as const).map((d) => (
+              <button key={d} role="radio" aria-checked={display.density === d} className={display.density === d ? "active" : ""} onClick={() => setDensity(d)}>
+                {d === "comfortable" ? "Comfortable" : "Compact"}
+              </button>
+            ))}
+          </div>
+          <div className="small muted">Compact fits more rows on screen, handy on a laptop.</div>
         </div>
       </div>
 

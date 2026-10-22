@@ -8,9 +8,11 @@ import { announceUpdate } from "./lib/update.ts";
 import { throttle } from "./lib/util.ts";
 import "./styles.css";
 import { applyRememberedAppearance } from "./lib/appearance.ts";
+import { applyRememberedDisplay, stepScale } from "./lib/display.ts";
 
-// Before the first frame, so there is no flash of the wrong theme.
+// Before the first frame, so there is no flash of the wrong theme or size.
 applyRememberedAppearance();
+applyRememberedDisplay();
 
 // No popups, ever. Links go through the backend to your normal browser.
 window.open = () => null;
@@ -53,6 +55,12 @@ document.addEventListener("keydown", (e) => {
     if (phase === "ready") void sync();
     return;
   }
+  // Text size works everywhere, including the lock screen.
+  if (ctrl && !e.altKey && (e.key === "=" || e.key === "+" || e.key === "-" || e.key === "_" || e.key === "0")) {
+    e.preventDefault();
+    stepScale(e.key === "0" ? 0 : e.key === "-" || e.key === "_" ? -1 : 1);
+    return;
+  }
   if (phase !== "ready") return;
   if (ctrl && e.key.toLowerCase() === "k") {
     e.preventDefault();
@@ -69,6 +77,7 @@ document.addEventListener("keydown", (e) => {
   else if (e.altKey && e.key === "3") navigate({ view: "mail" });
   else if (e.altKey && e.key === "4") navigate({ view: "dates" });
   else if (e.altKey && e.key === "5") navigate({ view: "calendar" });
+  else if (e.altKey && e.key === "6") navigate({ view: "grades" });
 });
 
 // Activity heartbeat for auto-lock (the backend also watches system idle on Windows).

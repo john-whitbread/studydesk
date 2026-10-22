@@ -2,7 +2,9 @@ import { ChevronDown, ChevronRight, ExternalLink, Megaphone, MessageSquare } fro
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api.ts";
 import { items } from "../lib/derive.ts";
-import { navigate, reportError, setState, useStore } from "../lib/store.ts";
+import { navigate, reportError, setState, useStore, type CourseTab } from "../lib/store.ts";
+import { CourseGrades } from "./Grades.tsx";
+import { ModulesView } from "./Modules.tsx";
 import { fmtDateTime, fmtNum, parse } from "../lib/time.ts";
 import type { Announcement, Course } from "../lib/types.ts";
 import { courseColor, currentScore } from "../lib/util.ts";
@@ -11,8 +13,10 @@ import { AssignmentList } from "./AssignmentList.tsx";
 import { Empty, Html, useNow } from "./common.tsx";
 import { FilesPane } from "./FilesPane.tsx";
 
-export function CourseView({ courseId, assignmentId }: { courseId: number; assignmentId?: number }) {
+export function CourseView({ courseId, assignmentId, tab = "work" }: { courseId: number; assignmentId?: number; tab?: CourseTab }) {
   const dash = useStore((s) => s.dash);
+  const allPins = useStore((s) => s.pinned);
+  const pins = useMemo(() => allPins.filter((p) => p.courseId === courseId), [allPins, courseId]);
   const now = useNow(30_000);
   const bodyRef = useRef<HTMLDivElement>(null);
   /** three: list | detail | files. two: list | (detail or files). one: a single pane at a time. */
@@ -28,7 +32,7 @@ export function CourseView({ courseId, assignmentId }: { courseId: number; assig
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [dash != null]);
+  }, [dash != null, tab]);
 
   useEffect(() => {
     setPane(assignmentId != null ? "details" : "list");
@@ -37,12 +41,12 @@ export function CourseView({ courseId, assignmentId }: { courseId: number; assig
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (e.key !== "Escape" || assignmentId == null || t.closest("input, textarea, .modal, .palette")) return;
+      if (e.key !== "Escape" || assignmentId == null || tab !== "work" || t.closest("input, textarea, select, .modal, .palette")) return;
       navigate({ view: "course", courseId });
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
-  }, [assignmentId, courseId]);
+  }, [assignmentId, courseId, tab]);
 
   const course = dash?.courses.find((c) => c.id === courseId);
   const list = useMemo(() => items(dash, now, courseId), [dash, now, courseId]);
@@ -56,10 +60,13 @@ export function CourseView({ courseId, assignmentId }: { courseId: number; assig
   if (!course) return <Empty title="Course not found">It may have ended or been hidden. Check Settings → Courses.</Empty>;
 
   const select = (id: number) => {
-    navigate({ view: "course", courseId, assignmentId: id });
+    navigate({ view: "course", courseId, assignmentId: id, tab: "work" });
     setPane("details"); // also when re-picking the already-selected one
   };
   const close = () => navigate({ view: "course", courseId });
+  const setTab = (t: CourseTab) => navigate({ view: "course", courseId, assignmentId: t === "work" ? assignmentId : undefined, tab: t });
+  const onPin = () => navigate({ view: "dates" });
+  const todoCount = list.filter((i) => i.s.needsAction).length;
   const { score, grade } = currentScore(course);
 
   const detail = selected && <AssignmentDetail key={selected.id} base={selected} course={course} now={now} onClose={close} />;
@@ -96,11 +103,31 @@ export function CourseView({ courseId, assignmentId }: { courseId: number; assig
 
       <div className="content" style={{ overflow: "hidden" }}>
         <div className="course-body" ref={bodyRef}>
+          <div className="seg course-tabs" role="tablist" aria-label="Course sections">
+            {(
+              [
+                ["work", "Work", todoCount || null],
+                ["grades", "Grades", score != null && !course.hide_final_grades ? `${fmtNum(score)}%` : null],
+                ["modules", "Modules", null],
+              ] as [CourseTab, string, string | number | null][]
+            ).map(([k, label, n]) => (
+              <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "active" : ""} onClick={() => setTab(k)}>
+                {label}
+                {n != null && <span className="n">{n}</span>}
+              </button>
+            ))}
+          </div>
+          {tab === "grades" ? (
+            <CourseGrades course={course} onOpen={select} />
+          ) : tab === "modules" ? (
+            <ModulesView course={course} onOpenAssignment={select} />
+          ) : (
+          <>
           {anns.length > 0 && <Announcements course={course} anns={anns} now={now} />}
           {cols === 3 ? (
             <div className="cols three">
               <div className="col">
-                <AssignmentList list={list} now={now} selectedId={assignmentId} onSelect={select} />
+                <AssignmentList list={list} now={now} selectedId={assignmentId} onSelect={select} pins={pins} onPin={onPin} />
               </div>
               <div className="col">{detail ?? <SelectHint />}</div>
               <div className="col">{files}</div>
@@ -108,7 +135,7 @@ export function CourseView({ courseId, assignmentId }: { courseId: number; assig
           ) : cols === 2 ? (
             <div className="cols two">
               <div className="col">
-                <AssignmentList list={list} now={now} selectedId={assignmentId} onSelect={select} />
+                <AssignmentList list={list} now={now} selectedId={assignmentId} onSelect={select} pins={pins} onPin={onPin} />
               </div>
               <div className="col" style={{ gap: 8 }}>
                 {selected && (
@@ -140,9 +167,11 @@ export function CourseView({ courseId, assignmentId }: { courseId: number; assig
                     Files
                   </button>
                 </div>
-                {pane === "files" ? files : pane === "details" && selected ? detail : <AssignmentList list={list} now={now} selectedId={assignmentId} onSelect={select} />}
+                {pane === "files" ? files : pane === "details" && selected ? detail : <AssignmentList list={list} now={now} selectedId={assignmentId} onSelect={select} pins={pins} onPin={onPin} />}
               </div>
             </div>
+          )}
+          </>
           )}
         </div>
       </div>

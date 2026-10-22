@@ -5,6 +5,7 @@ import { Confetti } from "./components/Confetti.tsx";
 import { CalendarView } from "./components/CalendarView.tsx";
 import { Tour } from "./components/Tour.tsx";
 import { KeyDates } from "./components/KeyDates.tsx";
+import { GradesOverview } from "./components/Grades.tsx";
 import { CourseView } from "./components/CourseView.tsx";
 import { LockScreen, Setup } from "./components/Gate.tsx";
 import { Inbox } from "./components/Inbox.tsx";
@@ -63,7 +64,8 @@ function Shell() {
       {sideOpen && <div className="side-scrim" onClick={() => setState({ sideOpen: false })} />}
       <main className="main">
         {route.view === "today" && <Today />}
-        {route.view === "course" && <CourseView courseId={route.courseId} assignmentId={route.assignmentId} />}
+        {route.view === "course" && <CourseView courseId={route.courseId} assignmentId={route.assignmentId} tab={route.tab} />}
+        {route.view === "grades" && <GradesOverview />}
         {route.view === "inbox" && <Inbox conversationId={route.conversationId} />}
         {route.view === "mail" && <Mail threadId={route.threadId} />}
         {route.view === "settings" && <Settings />}

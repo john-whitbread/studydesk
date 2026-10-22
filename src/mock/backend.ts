@@ -19,7 +19,7 @@ let unlocked = new URLSearchParams(location.search).get("locked") == null;
 let vault = new URLSearchParams(location.search).get("setup") == null;
 
 const courses: Course[] = [
-  { id: 101, name: "Solid Mechanics II", course_code: "MECE 2420U", term: { name: "Fall 2026" }, enrollments: [{ type: "student", computed_current_score: 84.6, computed_current_grade: "A-" }], color: "#2563eb", folder: "C:\\Users\\student\\School\\MECE 2420U", hidden: false },
+  { id: 101, name: "Solid Mechanics II", course_code: "MECE 2420U", term: { name: "Fall 2026" }, enrollments: [{ type: "student", computed_current_score: 84.6, computed_current_grade: "A-" }], color: "#2563eb", folder: "C:\\Users\\student\\School\\MECE 2420U", hidden: false, apply_assignment_group_weights: true },
   { id: 102, name: "Fluid Mechanics", course_code: "MECE 2860U", term: { name: "Fall 2026" }, enrollments: [{ type: "student", computed_current_score: 78.25, computed_current_grade: "B+" }], color: "#0d9488", folder: "C:\\Users\\student\\School\\MECE 2860U", hidden: false },
   { id: 103, name: "Differential Equations", course_code: "MATH 2860U", term: { name: "Fall 2026" }, enrollments: [{ type: "student", computed_current_score: 91.1, computed_current_grade: "A+" }], color: "#9333ea", folder: null, hidden: false },
   { id: 104, name: "Introduction to Nuclear Engineering", course_code: "NUCL 2020U", term: { name: "Fall 2026" }, enrollments: [{ type: "student", computed_current_score: null }], color: "#d97706", folder: "C:\\Users\\student\\School\\NUCL 2020U", hidden: false },
@@ -44,12 +44,18 @@ const desc = `<p>Analyse the thick-walled cylinder in <strong>Figure 3</strong> 
 <img src="https://canvas.example.edu/x.png" alt="Figure 3"><p>Late penalty: 10% per day, up to 3 days.</p>`;
 
 let assignments: Assignment[] = [
-  A({ id: 1, course_id: 101, name: "Lab 3 – Thick-walled cylinders", due_at: at(0, 23, 59), points_possible: 20, allowed_extensions: ["pdf"], allowed_attempts: 2, description: desc,
+  A({ id: 1, course_id: 101, assignment_group_id: 1011, name: "Lab 3 – Thick-walled cylinders", due_at: at(0, 23, 59), points_possible: 20, allowed_extensions: ["pdf"], allowed_attempts: 2, description: desc,
       rubric: [{ id: "r1", description: "Free-body diagram & assumptions", points: 4, ratings: [] }, { id: "r2", description: "Stress distributions", points: 8, ratings: [] }, { id: "r3", description: "FEA comparison", points: 6, ratings: [] }, { id: "r4", description: "Presentation", points: 2, ratings: [] }] }),
-  A({ id: 2, course_id: 101, name: "Problem Set 6 – Torsion of non-circular shafts", due_at: at(3, 17, 0), points_possible: 15, allowed_extensions: ["pdf"] }),
-  A({ id: 3, course_id: 101, name: "Problem Set 5 – Energy methods", due_at: at(-4, 17, 0), points_possible: 15, submission: sub({ workflow_state: "graded", submitted_at: at(-5, 21, 10), graded_at: ago(1 * D), score: 13.5, grade: "13.5", attempt: 1,
+  A({ id: 2, course_id: 101, assignment_group_id: 1012, name: "Problem Set 6 – Torsion of non-circular shafts", due_at: at(3, 17, 0), points_possible: 15, allowed_extensions: ["pdf"] }),
+  A({ id: 3, course_id: 101, assignment_group_id: 1012, name: "Problem Set 5 – Energy methods", due_at: at(-4, 17, 0), points_possible: 15, submission: sub({ workflow_state: "graded", submitted_at: at(-5, 21, 10), graded_at: ago(1 * D), score: 13.5, grade: "13.5", attempt: 1,
       submission_comments: [{ id: 9, author_name: "Dr. R. Alvarez", comment: "Good work. Q3 is missing the strain energy from shear, see the solution posted on the course page.", created_at: ago(1 * D), attachments: [] }] }) }),
-  A({ id: 4, course_id: 101, name: "Midterm exam", due_at: at(9, 10, 0), submission_types: ["on_paper"], allowed_extensions: [], points_possible: 100 }),
+  A({ id: 4, course_id: 101, assignment_group_id: 1013, name: "Midterm exam", due_at: at(9, 10, 0), submission_types: ["on_paper"], allowed_extensions: [], points_possible: 100 }),
+  A({ id: 16, course_id: 101, assignment_group_id: 1011, name: "Lab 1 – Strain gauges", due_at: at(-30), points_possible: 20, submission: sub({ workflow_state: "graded", submitted_at: at(-31), score: 18, attempt: 1 }) }),
+  A({ id: 17, course_id: 101, assignment_group_id: 1011, name: "Lab 2 – Beam deflection", due_at: at(-16), points_possible: 20, submission: sub({ workflow_state: "graded", submitted_at: at(-17), score: 16.5, attempt: 1 }) }),
+  A({ id: 18, course_id: 101, assignment_group_id: 1012, name: "Problem Set 4 – Unsymmetric bending", due_at: at(-11, 17, 0), points_possible: 15, submission: sub({ workflow_state: "graded", submitted_at: at(-12), score: 12, attempt: 1 }) }),
+  A({ id: 19, course_id: 101, assignment_group_id: 1012, name: "Problem Set 3 – Curved beams", due_at: at(-18, 17, 0), points_possible: 15, submission: sub({ workflow_state: "graded", submitted_at: at(-19), score: 8, attempt: 1 }) }),
+  A({ id: 20, course_id: 101, assignment_group_id: 1012, name: "Problem Set 2 – Thin-walled sections", due_at: at(-25, 17, 0), points_possible: 15, submission: sub({ workflow_state: "graded", submitted_at: at(-26), score: null, grade: null, attempt: 1 }) }),
+  A({ id: 21, course_id: 101, assignment_group_id: 1014, name: "Final exam", due_at: at(50, 9, 0), submission_types: ["on_paper"], allowed_extensions: [], points_possible: 100 }),
   A({ id: 5, course_id: 102, name: "Lab 2 – Pipe friction losses", due_at: at(-1, 23, 59), points_possible: 25, allowed_extensions: ["pdf", "docx"], submission: sub({ missing: false }) }),
   A({ id: 6, course_id: 102, name: "Quiz 4 – Bernoulli and energy equation", due_at: at(1, 9, 0), submission_types: ["online_quiz"], is_quiz_assignment: true, allowed_extensions: [], points_possible: 5 }),
   A({ id: 7, course_id: 102, name: "Assignment 4 – Dimensional analysis", due_at: at(5, 23, 59), points_possible: 20, allowed_extensions: ["pdf", "zip"], submission: sub({ workflow_state: "submitted", submitted_at: ago(2 * H), attempt: 1 }) }),
@@ -61,6 +67,45 @@ let assignments: Assignment[] = [
   A({ id: 13, course_id: 105, name: "Design review 1 – Concept selection", due_at: at(-2, 12, 0), lock_at: at(-1, 12, 0), points_possible: 10, submission: sub({ missing: true }) }),
   A({ id: 14, course_id: 105, name: "Team charter", due_at: null, points_possible: 2, allowed_extensions: [] }),
   A({ id: 15, course_id: 105, name: "Prototype demo video", due_at: at(12, 23, 59), submission_types: ["online_url", "online_upload"], allowed_extensions: ["mp4", "mov"], points_possible: 15 }),
+];
+
+const groups: Record<number, unknown[]> = {
+  101: [
+    { id: 1011, name: "Labs", position: 1, group_weight: 30, rules: null },
+    { id: 1012, name: "Problem sets", position: 2, group_weight: 20, rules: { drop_lowest: 1 } },
+    { id: 1013, name: "Midterm", position: 3, group_weight: 20, rules: null },
+    { id: 1014, name: "Final exam", position: 4, group_weight: 30, rules: null },
+  ],
+};
+const modules = {
+  101: [
+    { id: 1, name: "Week 7 – Thick-walled cylinders", position: 7, state: "started", items: [
+      { id: 71, module_id: 1, title: "Read: Chapter 5.1–5.4 (Lamé solution)", type: "Page", html_url: "https://canvas.example.edu/courses/101/pages/ch5", completion_requirement: { type: "must_view", completed: false } },
+      { id: 72, module_id: 1, title: "Lecture 13 slides", type: "File", html_url: "https://canvas.example.edu/courses/101/files/13", completion_requirement: { type: "must_view", completed: true } },
+      { id: 73, module_id: 1, title: "Lab 3 – Thick-walled cylinders", type: "Assignment", content_id: 1, completion_requirement: { type: "must_submit", completed: false }, content_details: { due_at: at(0, 23, 59), points_possible: 20 } },
+      { id: 74, module_id: 1, title: "Practice problems 5", type: "Page", html_url: "https://canvas.example.edu/courses/101/pages/pp5", completion_requirement: { type: "must_mark_done", completed: false } },
+    ] },
+    { id: 2, name: "Week 6 – Energy methods", position: 6, state: "completed", items: [
+      { id: 61, module_id: 2, title: "Read: Chapter 4", type: "Page", completion_requirement: { type: "must_view", completed: true } },
+      { id: 62, module_id: 2, title: "Problem Set 5 – Energy methods", type: "Assignment", content_id: 3, completion_requirement: { type: "must_submit", completed: true } },
+    ] },
+  ],
+  102: [
+    { id: 3, name: "Week 7 – Pipe flow", position: 7, state: "started", items: [
+      { id: 81, module_id: 3, title: "Read: Section 8.4 Moody chart", type: "Page", completion_requirement: { type: "must_view", completed: false } },
+      { id: 82, module_id: 3, title: "Pre-lab video: friction losses", type: "ExternalUrl", completion_requirement: { type: "must_view", completed: false } },
+    ] },
+  ],
+};
+let work: Record<string, unknown> = {};
+let workPrefsM = { autoDates: true, estimates: {} as Record<string, number> };
+const KINDS_M = [["exam", "Exam prep", 8], ["project", "Project / report", 8], ["lab", "Lab", 4], ["problem_set", "Problem set", 3], ["essay", "Essay / writing", 5], ["quiz", "Quiz", 1], ["short", "Short task (reflection, post)", 1], ["other", "Other", 2]];
+let officeHoursM: unknown[] = [{ id: "oh1", courseId: 101, days: [3], start: "14:00", end: "16:00", location: "ENG 2040", who: "Dr. R. Alvarez", snippet: "Office hours: Thursday 2–4 pm, ENG 2040", source: "Syllabus" }];
+const ohSuggest = [{ id: "oh2", courseId: 102, days: [0, 2], start: "13:00", end: "14:30", location: "Online", who: "TA Priya Nair", snippet: "Office hours: Mon & Wed 1:00–2:30 pm on Teams (TA Priya Nair)", source: "Course home page" }];
+let changes = [
+  { id: "c1", at: now - 3 * H, courseId: 101, assignmentId: 2, kind: "due_moved", name: "Problem Set 6 – Torsion of non-circular shafts", from: at(2, 17, 0), to: at(3, 17, 0), seen: false },
+  { id: "c2", at: now - 1 * D, courseId: 101, assignmentId: 3, kind: "graded", name: "Problem Set 5 – Energy methods", from: null, to: "13.5", seen: false },
+  { id: "c3", at: now - 2 * D, courseId: 103, assignmentId: 9, kind: "new", name: "Written assignment 3", from: null, to: at(6, 23, 59), seen: true },
 ];
 
 const files: Record<number, Entry[]> = {
@@ -168,7 +213,7 @@ const handlers: Record<string, (a: any) => unknown> = {
   lock: () => ((unlocked = false), emit("locked", null)),
   touch: () => null,
   sync_all: async () => (await sleep(350), {
-    userId: 7, userName: "J. Student", baseUrl: "https://canvas.example.edu/", courses, assignments, unreadCount: conversations.filter((c) => c.workflow_state === "unread").length, notices: [], syncedAt: Date.now(),
+    userId: 7, userName: "J. Student", baseUrl: "https://canvas.example.edu/", courses, assignments, unreadCount: conversations.filter((c) => c.workflow_state === "unread").length, notices: [], syncedAt: Date.now(), changes, autoPinned: [],
     announcements: [
       { id: 801, title: "Lab 3 office hours moved to Thursday", message: "<p>This week's lab office hours move to <b>Thursday 2–4 pm</b> in ENG 2040.</p>", posted_at: ago(6 * H), context_code: "course_101", read_state: "unread", author: { display_name: "Dr. R. Alvarez" } },
       { id: 802, title: "Midterm coverage", message: "<p>The midterm covers chapters 1–5 inclusive. A formula sheet will be provided.</p>", posted_at: ago(4 * D), context_code: "course_101", read_state: "read", author: { display_name: "Dr. R. Alvarez" } },
@@ -271,7 +316,7 @@ const handlers: Record<string, (a: any) => unknown> = {
       emit("scan-progress", { done: i, total: 5, course: "x" });
       await sleep(250);
     }
-    return { findings, scanned };
+    return { findings, scanned, officeHours: ohSuggest.filter((o) => !officeHoursM.some((x) => (x as { id: string }).id === o.id)) };
   },
   replace_token: () => ({ userId: 7, userName: "J. Student", baseUrl: "https://canvas.example.edu/" }),
 
@@ -345,6 +390,24 @@ const handlers: Record<string, (a: any) => unknown> = {
   },
   gmail_send: async () => (await sleep(400), "sent-1"),
   gmail_save_attachment: ({ filename }) => `C:\\Users\\student\\Downloads\\${filename}`,
+  // ---------------------------------------------------------------- 0.5
+  work_all: () => work,
+  work_put: ({ key, item }) => ((work = { ...work, [key]: item }), null),
+  office_hours_list: () => officeHoursM,
+  office_hours_save: ({ item }) => ((officeHoursM = [...officeHoursM.filter((o) => (o as { id: string }).id !== item.id), item]), officeHoursM),
+  office_hours_remove: ({ id }) => ((officeHoursM = officeHoursM.filter((o) => (o as { id: string }).id !== id)), officeHoursM),
+  work_prefs: () => ({ ...workPrefsM, kinds: KINDS_M }),
+  set_work_prefs: ({ autoDates, estimates }) => ((workPrefsM = { autoDates: autoDates ?? workPrefsM.autoDates, estimates: estimates ?? workPrefsM.estimates }), { ...workPrefsM, kinds: KINDS_M }),
+  changes_seen: ({ ids }) => ((changes = changes.map((c) => (ids.length === 0 || ids.includes(c.id) ? { ...c, seen: true } : c))), changes),
+  grade_groups: ({ courseIds }) => courseIds.map((id: number) => ({ courseId: id, groups: groups[id] ?? [] })),
+  modules_for: async ({ courseIds }) => (await sleep(200), courseIds.map((id: number) => ({ courseId: id, modules: (modules as Record<number, unknown[]>)[id] ?? [], note: (modules as Record<number, unknown[]>)[id] ? null : "This course doesn't use modules." }))),
+  module_item_complete: ({ moduleId, itemId }) => {
+    for (const ms of Object.values(modules)) for (const m of ms) if (m.id === moduleId) for (const it of m.items) if (it.id === itemId && it.completion_requirement) it.completion_requirement.completed = true;
+    return null;
+  },
+  set_zoom: () => null,
+  diagnostics_info: () => ({ version: "0.5.0", os: "windows 10.0.22631", arch: "x86_64", unlocked: true, passphrase: false, canvasHost: "canvas.example.edu", coursesHidden: 0, foldersLinked: 3, foldersMissing: 0, gmail: true, apple: true, applePush: true, calendarLinks: 0, pinned: pins.length, officeHours: officeHoursM.length, workItems: Object.keys(work).length, lastCalendarUpdate: null }),
+  diagnostics_save: ({ text }) => (console.log(text), "C:\\Users\\student\\Desktop\\studydesk-diagnostics.txt"),
 };
 
 let hasPass = new URLSearchParams(location.search).get("pass") != null;

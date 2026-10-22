@@ -1,4 +1,4 @@
-import { BookOpen, CalendarClock, CalendarDays, FileText, Inbox, Lock, PenLine, RefreshCw, Search, Settings } from "lucide-react";
+import { BookOpen, CalendarClock, CalendarDays, CalendarRange, FileText, GraduationCap, Inbox, Lock, Mail, PenLine, RefreshCw, Search, Settings, StickyNote, ZoomIn } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { items } from "../lib/derive.ts";
 import { getState, lockNow, navigate, runScan, setState, sync, useStore } from "../lib/store.ts";
@@ -18,6 +18,7 @@ interface Opt {
 
 export function Palette() {
   const dash = useStore((s) => s.dash);
+  const work = useStore((s) => s.work);
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
@@ -27,8 +28,11 @@ export function Palette() {
   const opts = useMemo<Opt[]>(() => {
     const base: Opt[] = [
       { id: "today", group: "Go to", label: "Today", icon: <CalendarDays size={15} />, run: () => navigate({ view: "today" }) },
-      { id: "inbox", group: "Go to", label: "Inbox", icon: <Inbox size={15} />, run: () => navigate({ view: "inbox" }) },
-      { id: "dates", group: "Go to", label: "Key dates", icon: <CalendarClock size={15} />, run: () => navigate({ view: "dates" }) },
+      { id: "inbox", group: "Go to", label: "Canvas inbox", hint: "Alt 2", icon: <Inbox size={15} />, run: () => navigate({ view: "inbox" }) },
+      { id: "mail", group: "Go to", label: "Email", hint: "Alt 3", icon: <Mail size={15} />, run: () => navigate({ view: "mail" }) },
+      { id: "dates", group: "Go to", label: "Key dates", hint: "Alt 4", icon: <CalendarClock size={15} />, run: () => navigate({ view: "dates" }) },
+      { id: "calendar", group: "Go to", label: "Calendar", hint: "Alt 5", icon: <CalendarRange size={15} />, run: () => navigate({ view: "calendar" }) },
+      { id: "grades", group: "Go to", label: "Grades", hint: "Alt 6", icon: <GraduationCap size={15} />, run: () => navigate({ view: "grades" }) },
       { id: "settings", group: "Go to", label: "Settings", icon: <Settings size={15} />, run: () => navigate({ view: "settings" }) },
       ...(dash?.courses ?? [])
         .filter((c) => !c.hidden)
@@ -43,7 +47,23 @@ export function Palette() {
       { id: "sync", group: "Actions", label: "Refresh from Canvas", hint: "F5", icon: <RefreshCw size={15} />, run: () => (close(), sync()) },
       ...(getState().hasPassphrase ? [{ id: "lock", group: "Actions", label: "Lock Studydesk", hint: "Ctrl L", icon: <Lock size={15} />, run: () => lockNow() }] : []),
       { id: "scan", group: "Actions", label: "Scan courses for key dates", icon: <CalendarClock size={15} />, run: () => (navigate({ view: "dates" }), void runScan()) },
+      { id: "zoom", group: "Actions", label: "Text size", hint: "Ctrl + / Ctrl −", icon: <ZoomIn size={15} />, run: () => navigate({ view: "settings" }) },
     ];
+    // Your notes, searched by content: the best matching line is shown.
+    const byId = new Map((dash?.assignments ?? []).map((a) => [`${a.course_id}:${a.id}`, a]));
+    const notes: Opt[] = [];
+    const needle = q.trim().toLowerCase();
+    if (needle.length >= 2)
+      for (const [key, w] of Object.entries(work)) {
+        if (!w.notes) continue;
+        const a = byId.get(key);
+        if (!a) continue;
+        const i = w.notes.toLowerCase().indexOf(needle);
+        if (i < 0) continue;
+        const from = Math.max(0, i - 30);
+        const snip = (from > 0 ? "…" : "") + w.notes.slice(from, i + needle.length + 50).replace(/\s+/g, " ") + (i + needle.length + 50 < w.notes.length ? "…" : "");
+        notes.push({ id: `n${key}`, group: "Your notes", label: a.name, hint: <span className="ellipsis" style={{ maxWidth: 320 }}>{snip}</span>, icon: <StickyNote size={15} />, run: () => navigate({ view: "course", courseId: a.course_id, assignmentId: a.id }), score: 50 });
+      }
     const asg: Opt[] = items(dash, now).map((it) => ({
       id: `a${it.a.id}`,
       group: "Assignments",
@@ -68,12 +88,13 @@ export function Palette() {
         .map((o) => ({ ...o, group: "Needs action" }));
       return [...base.filter((o) => o.group !== "Courses"), ...next, ...base.filter((o) => o.group === "Courses")];
     }
-    return [...base, ...asg]
+    const ranked = [...base, ...asg]
       .map((o) => ({ ...o, score: fuzzyScore(q, o.label) + (o.group === "Go to" ? 5 : 0) }))
       .filter((o) => o.score > 0)
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       .slice(0, 40);
-  }, [dash, q]); // eslint-disable-line react-hooks/exhaustive-deps
+    return [...ranked, ...notes.slice(0, 10)];
+  }, [dash, q, work]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => setActive(0), [q]);
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { CalendarClock, CalendarDays, CalendarRange, Inbox, Lock, Mail, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, Settings, TriangleAlert } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarRange, GraduationCap, Inbox, Lock, Mail, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, Settings, TriangleAlert } from "lucide-react";
 import { useMemo } from "react";
 import { actionCounts, items, visibleCourses } from "../lib/derive.ts";
 import { lockNow, navigate, setState, sync, useStore } from "../lib/store.ts";
@@ -84,6 +84,10 @@ export function Sidebar() {
         <button className={`nav-item${route.view === "calendar" ? " active" : ""}`} onClick={() => go({ view: "calendar" })} aria-label="Calendar" data-tip="Calendar">
           <CalendarRange size={16} />
           <span className="nl">Calendar</span>
+        </button>
+        <button className={`nav-item${route.view === "grades" ? " active" : ""}`} onClick={() => go({ view: "grades" })} aria-label="Grades" data-tip="Grades">
+          <GraduationCap size={16} />
+          <span className="nl">Grades</span>
         </button>
         <button className={`nav-item${route.view === "inbox" ? " active" : ""}`} onClick={() => go({ view: "inbox" })} aria-label="Canvas inbox" data-tip="Canvas inbox">
           <Inbox size={16} />

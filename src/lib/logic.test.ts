@@ -386,3 +386,19 @@ test("workload by hours and collisions", () => {
   assert.equal(c.length, 3);
   assert.match(c[0].text, /3 due, about 8 h/);
 });
+
+test("grade range and remaining", async () => {
+  const { gradeRange, remaining, letterOf } = await import("./grades.ts");
+  const A = (id: number, score: number | null, pts: number): import("./types.ts").Assignment => ({
+    id, course_id: 1, name: `a${id}`, submission_types: [], allowed_extensions: [], rubric: [], points_possible: pts,
+    submission: score == null ? null : { score, workflow_state: "graded", attachments: [], submission_comments: [] },
+  });
+  const list = [A(1, 40, 50), A(2, null, 50)];
+  assert.deepEqual(remaining(list).map((a) => a.id), [2]);
+  const r = gradeRange(list, [], false);
+  assert.equal(r.min, 40);
+  assert.equal(r.max, 90);
+  assert.equal(letterOf(84.99), "A-");
+  assert.equal(letterOf(85), "A");
+  assert.equal(letterOf(49.5), "F");
+});

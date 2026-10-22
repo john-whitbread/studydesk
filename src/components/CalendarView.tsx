@@ -6,6 +6,7 @@ import { entries, KIND_LABEL } from "../lib/entries.ts";
 import { navigate, reportError, useStore } from "../lib/store.ts";
 import { fmtTime } from "../lib/time.ts";
 import type { CalStatus, ExtEvent } from "../lib/types.ts";
+import { ohSlots } from "../lib/officehours.ts";
 import { courseColor } from "../lib/util.ts";
 import { Spinner, useNow } from "./common.tsx";
 
@@ -30,6 +31,8 @@ const fmtDayHead = (t: number) => new Date(t).toLocaleDateString(undefined, { we
 export function CalendarView({ date }: { date?: number }) {
   const dash = useStore((s) => s.dash);
   const pinned = useStore((s) => s.pinned);
+  const officeHours = useStore((s) => s.officeHours);
+  const [showOh, setShowOh] = useState(true);
   const now = useNow(60_000);
   const [view, setViewRaw] = useState<View>(loadView);
   const [anchor, setAnchor] = useState(() => dayStart(date ?? Date.now()));
@@ -117,12 +120,19 @@ export function CalendarView({ date }: { date?: number }) {
         out.push({ kind: "entry", key: e.key, e, start, end: allDay ? addDays(start, 1) : start + 3600_000, allDay, title: `${KIND_LABEL[e.p.kind] ?? "Note"}: ${e.p.label}`, color: courseColor(e.course) });
       }
     }
+    if (showOh)
+      for (const s of ohSlots(officeHours, from, to)) {
+        const c = dash?.courses.find((x) => x.id === s.oh.courseId);
+        if (!c || c.hidden) continue;
+        const x: ExtEvent = { source: "office-hours", title: `Office hours · ${c.course_code || c.name}`, location: [s.oh.who, s.oh.location].filter(Boolean).join(" · "), start: s.start, end: s.end, allDay: false, color: courseColor(c), calendar: "Office hours" };
+        out.push({ kind: "ext", key: `oh${s.oh.id}:${s.start}`, x, start: s.start, end: s.end, allDay: false, title: x.title, color: x.color });
+      }
     ext.forEach((x, i) => {
       if (studydeskIds.has(x.source)) return;
       out.push({ kind: "ext", key: `x${i}`, x, start: x.start, end: x.end, allDay: x.allDay, title: x.title || "(no title)", color: x.color || "var(--text-3)" });
     });
     return out;
-  }, [dash, pinned, now, ext, showDue, showPins, status]);
+  }, [dash, pinned, now, ext, showDue, showPins, status, officeHours, showOh, from, to]);
 
   const days = useMemo(() => byDay(items, from, to), [items, from, to]);
 
@@ -172,6 +182,11 @@ export function CalendarView({ date }: { date?: number }) {
         <button className={`cal-chip${showPins ? " on" : ""}`} onClick={() => setShowPins(!showPins)} aria-pressed={showPins}>
           <span className="cal-swatch course" /> Key dates
         </button>
+        {officeHours.length > 0 && (
+          <button className={`cal-chip${showOh ? " on" : ""}`} onClick={() => setShowOh(!showOh)} aria-pressed={showOh}>
+            <span className="cal-swatch course" /> Office hours
+          </button>
+        )}
         {status?.apple?.calendars
           .filter((c) => !c.studydesk)
           .map((c) => (

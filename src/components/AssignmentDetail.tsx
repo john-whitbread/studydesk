@@ -6,6 +6,7 @@ import { reportError, setState, sync } from "../lib/store.ts";
 import { fmtDateTime, fmtNum, fmtSize, parse, relative } from "../lib/time.ts";
 import type { Assignment, AssignmentDetail as Detail, Course, RubricMark, Submission } from "../lib/types.ts";
 import { Html, Linkified, Notice, Spinner, StatusChip } from "./common.tsx";
+import { MyWork } from "./MyWork.tsx";
 import { Receipt, SubmitBox, submitModes } from "./SubmitBox.tsx";
 
 export function AssignmentDetail({ base, course, now, onClose }: { base: Assignment; course: Course; now: number; onClose: () => void }) {
@@ -119,6 +120,8 @@ export function AssignmentDetail({ base, course, now, onClose }: { base: Assignm
               <Html html={a.lock_explanation} />
             </Notice>
           )}
+
+          <MyWork a={a} course={course} now={now} described={!!detail} />
 
           {receipt && <Receipt s={receipt} />}
 

@@ -3,7 +3,8 @@ import { bestMatch, rankFiles } from "../lib/match.ts";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api.ts";
 import { dropClass } from "../lib/drag.ts";
-import { addToDraft, draftKey, newJob, reportError, setDraft, setState, toast, useStore } from "../lib/store.ts";
+import { addToDraft, draftKey, flushWork, newJob, reportError, setDraft, setState, toast, useStore } from "../lib/store.ts";
+import { unticked, workKey } from "./MyWork.tsx";
 import { fmtDateTime, fmtListTime, fmtSize, parse } from "../lib/time.ts";
 import type { Assignment, Course, Entry, PickedFile, Preflight, Submission } from "../lib/types.ts";
 import { plural } from "../lib/util.ts";
@@ -38,6 +39,9 @@ export function SubmitBox({ a, course, onSubmitted }: { a: Assignment; course: C
   const [showComment, setShowComment] = useState(false);
   const [job, setJob] = useState<string | null>(null);
   const progress = useStore((s) => (job ? s.progress[job] : undefined));
+  const work = useStore((s) => s.work[workKey(a.course_id, a.id)]);
+  const left = unticked(a, work);
+  const [confirming, setConfirming] = useState(false);
 
   const allowed = a.allowed_extensions.map((e) => e.replace(/^\./, "").toLowerCase());
   const refsKey = JSON.stringify(draft.map((d) => d.ref));
@@ -96,7 +100,14 @@ export function SubmitBox({ a, course, onSubmitted }: { a: Assignment; course: C
   const ready =
     !busy && !blocked && (mode === "files" ? draft.length > 0 : mode === "text" ? text.trim().length > 0 : /^https?:\/\/\S+\.\S+/.test(url.trim()));
 
-  async function submit() {
+  async function submit(force = false) {
+    // Warn (never block) when your own checklist isn't finished.
+    if (!force && left.left > 0) {
+      setConfirming(true);
+      return;
+    }
+    setConfirming(false);
+    flushWork();
     const j = newJob();
     setJob(j);
     try {
@@ -240,12 +251,35 @@ export function SubmitBox({ a, course, onSubmitted }: { a: Assignment; course: C
         </div>
       )}
 
+      {confirming && left.left > 0 && (
+        <div className="notice warn" role="alert">
+          <TriangleAlert size={15} />
+          <div className="grow">
+            <b>
+              {left.left} of {left.total} {left.what} not ticked.
+            </b>{" "}
+            Submit anyway?
+            <div className="row-flex" style={{ marginTop: 6 }}>
+              <button className="btn btn-sm btn-primary" onClick={() => submit(true)} disabled={!ready}>
+                Submit anyway
+              </button>
+              <button className="btn btn-sm" onClick={() => setConfirming(false)} autoFocus>
+                Go back and check
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="row-flex">
-        <button className="btn btn-primary" disabled={!ready} onClick={submit}>
+        <button className="btn btn-primary" disabled={!ready} onClick={() => submit()}>
           {busy ? <Spinner /> : <Upload size={15} />}
           {busy ? "Submitting…" : mode === "files" ? (draft.length > 1 ? `Submit ${draft.length} files` : "Submit file") : mode === "text" ? "Submit text" : "Submit link"}
         </button>
-        <span className="small muted">You'll confirm in a Windows dialog first.</span>
+        <span className="small muted">
+          {left.total > 0 && <>{left.total - left.left} of {left.total} ticked · </>}
+          You'll confirm in a Windows dialog first.
+        </span>
       </div>
     </div>
   );

@@ -1,12 +1,13 @@
 // Key dates: what the scanner found in your courses, and what you pinned.
 // Nothing found by the scanner counts until you pin it.
 
-import { Check, ChevronDown, ChevronRight, CircleAlert, ExternalLink, Pencil, Pin, PinOff, Plus, ScanSearch, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, CircleAlert, ExternalLink, Megaphone, Pencil, Pin, PinOff, Plus, ScanSearch, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api.ts";
 import { KIND_LABEL, pinDue } from "../lib/entries.ts";
 import { heatOf } from "../lib/heat.ts";
-import { reportError, runScan, setState, toast, useStore } from "../lib/store.ts";
+import { reportError, runScan, setState, setWorkPrefs, toast, useStore } from "../lib/store.ts";
+import { OfficeHoursPanel } from "./OfficeHoursPanel.tsx";
 import { fmtDay, fmtTime, relative } from "../lib/time.ts";
 import type { DateKind, Finding, PinnedDate } from "../lib/types.ts";
 import { courseColor, plural } from "../lib/util.ts";
@@ -172,6 +173,7 @@ export function KeyDates() {
   const pinned = useStore((s) => s.pinned);
   const scan = useStore((s) => s.scan);
   const scanning = useStore((s) => s.scanning);
+  const autoDates = useStore((s) => s.workPrefs?.autoDates ?? true);
   const now = useNow(60_000);
   const [adding, setAdding] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -238,8 +240,15 @@ export function KeyDates() {
             <div className="panel-head">
               <Pin size={15} />
               <h2>Pinned</h2>
-              <span className="small muted">Shown on Today and in Gravity, with reminders 24 h and 2 h before</span>
+              <span className="small muted">Shown on Today, in the course and in Gravity, with reminders 24 h and 2 h before</span>
             </div>
+            <label className="check small auto-toggle">
+              <input type="checkbox" checked={autoDates} onChange={(e) => setWorkPrefs(e.target.checked, null)} />
+              <span>
+                <b style={{ display: "block" }}>Add dates from announcements automatically</b>
+                <span className="muted" style={{ display: "block" }}>Checked on every refresh. You get a notice with Undo, and a date you remove never comes back.</span>
+              </span>
+            </label>
             {adding && (
               <PinEditor
                 initial={{ id: "", courseId: courses[0]?.id ?? 0, date: new Date(now + 7 * 864e5).toISOString().slice(0, 10), time: null, label: "", kind: "exam", weight: null, source: "Added by you" }}
@@ -270,14 +279,25 @@ export function KeyDates() {
                               {c.course_code || c.name}
                             </span>
                           )}
-                          <span className="ellipsis">From {p.source || "you"}</span>
+                          {p.auto ? (
+                            <span className="chip chip-xs tone-info" style={{ marginLeft: 0 }} title={p.source}>
+                              <Megaphone size={10} /> From an announcement
+                            </span>
+                          ) : null}
+                          {p.url ? (
+                            <button className="linkish ellipsis" onClick={() => api.openInCanvas(p.url as string).catch((e) => reportError(e))} title="Open the source in Canvas">
+                              {p.auto ? p.source.replace(/^Announcement: /, "") : `From ${p.source || "you"}`} <ExternalLink size={10} />
+                            </button>
+                          ) : (
+                            <span className="ellipsis">{p.auto ? p.source.replace(/^Announcement: /, "") : `From ${p.source || "you"}`}</span>
+                          )}
                         </div>
                       </div>
                       <div className="row-flex">
-                        <button className="icon-btn" title="Edit" onClick={() => setEditId(editId === p.id ? null : p.id)}>
+                        <button className="icon-btn" title="Edit" aria-label={`Edit ${p.label}`} onClick={() => setEditId(editId === p.id ? null : p.id)}>
                           <Pencil size={14} />
                         </button>
-                        <button className="icon-btn" title="Unpin" onClick={() => unpin(p.id)}>
+                        <button className="icon-btn" title="Unpin" aria-label={`Unpin ${p.label}`} onClick={() => unpin(p.id)}>
                           <PinOff size={14} />
                         </button>
                       </div>
@@ -289,6 +309,8 @@ export function KeyDates() {
             )}
             {pastPins > 0 && <div className="panel-body small muted">{plural(pastPins, "past date")} hidden.</div>}
           </section>
+
+          <OfficeHoursPanel />
 
           <section className="panel">
             <div className="panel-head">
